@@ -1,0 +1,1473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Surprise Bags</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://mapgl.2gis.com/api/js/v1"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Fixed brand palette — deliberately ignores Telegram's --tg-theme-*
+     variables AND the user's system dark/light setting. This app is
+     always light, as a brand identity, regardless of host theme. */
+  :root {
+    --bg: #FAF6ED;
+    --surface: #FFFFFF;
+    --accent: #9E2A3B;
+    --accent-text: #FBF3E3;
+    --gold: #C99A3B;
+    --text: #241C13;
+    --text-hint: #7A6E5C;
+    --border: #ECE4D2;
+    --shadow: rgba(36, 28, 19, 0.08);
+
+    --space-1: 8px;
+    --space-2: 16px;
+    --space-3: 24px;
+
+    --chip-bakery: #F0DDBE;
+    --chip-cafe_lunch: #ECD9C6;
+    --chip-restaurant_meal: #E9CFC9;
+    --chip-grocery: #EFE2C3;
+    --chip-other: #E6DCC8;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding-bottom: var(--space-3);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    padding: var(--space-2) var(--space-2) var(--space-1);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h1 {
+    font-family: "Quicksand", "Nunito", sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 var(--space-2);
+    letter-spacing: 0.01em;
+  }
+  #browseScreen h1 {
+    padding-right: 90px;
+    overflow-wrap: break-word;
+  }
+  @media (max-width: 420px) {
+    #browseScreen h1 { font-size: 18px; }
+  }
+
+  .filters {
+    display: flex;
+    gap: var(--space-1);
+    overflow-x: auto;
+    padding-bottom: var(--space-1);
+    scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+
+  .filter-chip {
+    flex: 0 0 auto;
+    padding: 7px 16px;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .filter-chip.active {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+    column-gap: var(--space-1);
+    margin-top: var(--space-2);
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .toolbar-dropdowns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Custom dropdown — replaces native <select> entirely */
+  .dropdown {
+    position: relative;
+  }
+  .dropdown-trigger {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .dropdown-trigger .chev {
+    font-size: 10px;
+    color: var(--text-hint);
+    transition: transform 0.15s ease;
+  }
+  .dropdown.open .dropdown-trigger .chev { transform: rotate(180deg); }
+  .dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 160px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px var(--shadow);
+    overflow: hidden;
+    z-index: 20;
+    display: none;
+  }
+  .dropdown.open .dropdown-menu { display: block; }
+  .dropdown-option {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .dropdown-option:hover { background: var(--bg); }
+  .dropdown-option.selected { color: var(--accent); font-weight: 700; }
+
+  .view-toggle {
+    display: flex;
+    flex: 0 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .view-toggle button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: none;
+    background: transparent;
+    color: var(--text-hint);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .view-toggle button svg { width: 15px; height: 15px; }
+  .view-toggle button.active {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+
+  main {
+    padding: var(--space-2);
+    animation: view-in 180ms ease-out;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+  @keyframes view-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Desktop: wider viewport gets a multi-column card grid instead of a
+     stretched single column, and more room for the header/map. Only the
+     browse listing grid goes multi-column — the profile/orders list stays
+     single-column at any width, matching a typical "my orders" pattern. */
+  @media (min-width: 768px) {
+    #listView { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1100px) {
+    #listView { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (min-width: 768px) {
+    header, main { max-width: 1200px; margin-left: auto; margin-right: auto; }
+  }
+
+  .card {
+    display: flex;
+    gap: var(--space-2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: var(--space-2);
+    box-shadow: 0 2px 8px var(--shadow);
+    animation: card-in 220ms ease-out backwards;
+  }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card { animation: none; }
+  }
+
+  .card-photo {
+    width: 80px;
+    height: 80px;
+    border-radius: 14px;
+    background: var(--bg);
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .card-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* Flat glyph presentation: icon inside a soft rounded color chip,
+     category-tinted, no gradients/detail — one visual language. */
+  .icon-chip {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+  }
+  .icon-chip svg { width: 60%; height: 60%; }
+  .icon-chip.cat-bakery { background: var(--chip-bakery); color: var(--accent); }
+  .icon-chip.cat-cafe_lunch { background: var(--chip-cafe_lunch); color: var(--gold); }
+  .icon-chip.cat-restaurant_meal { background: var(--chip-restaurant_meal); color: var(--accent); }
+  .icon-chip.cat-grocery { background: var(--chip-grocery); color: var(--gold); }
+  .icon-chip.cat-other { background: var(--chip-other); color: var(--text-hint); }
+
+  .card-body { flex: 1; min-width: 0; }
+  .card-merchant { font-family: "Quicksand", "Nunito", sans-serif; font-weight: 700; font-size: 15px; }
+  .card-location { color: var(--text-hint); font-size: 12px; margin-top: 2px; }
+  .card-category {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-top: var(--space-1);
+  }
+
+  .card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: var(--space-1);
+  }
+
+  .price-original {
+    text-decoration: line-through;
+    color: var(--text-hint);
+    font-size: 12px;
+    margin-right: 6px;
+  }
+  .price-discounted { font-weight: 700; font-size: 17px; color: var(--accent); }
+
+  .savings-badge {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--text);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  .pickup-time { font-size: 12px; color: var(--text-hint); }
+
+  .qty-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+    margin-top: 4px;
+    background: var(--bg);
+    color: var(--text-hint);
+  }
+  .qty-badge.low {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+
+  .reserve-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 12px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: transform 150ms ease, background 150ms ease;
+  }
+  .reserve-btn:active { transform: scale(0.97); }
+  .reserve-btn:disabled { opacity: 0.5; cursor: default; }
+  .reserve-btn.confirmed {
+    background: var(--gold);
+    color: var(--text);
+    opacity: 1;
+    animation: confirm-pop 220ms ease-out;
+  }
+  @keyframes confirm-pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  .empty-state, .loading-state {
+    text-align: center;
+    color: var(--text-hint);
+    padding: 48px var(--space-2);
+    font-size: 14px;
+  }
+  .empty-state-icons {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+  .empty-state-icons svg { width: 40px; height: 40px; }
+  .empty-state strong {
+    display: block;
+    font-family: "Quicksand", "Nunito", sans-serif;
+    color: var(--text);
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  /* Scattered decorative accents — hand-drawn, not tied to any listing */
+  .header-doodles {
+    position: absolute;
+    top: 0;
+    right: 0;
+    pointer-events: none;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+
+  .lang-switch {
+    position: absolute;
+    top: var(--space-1);
+    right: var(--space-2);
+    display: flex;
+    gap: 2px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px;
+    z-index: 5;
+  }
+  .lang-switch button {
+    border: none;
+    background: transparent;
+    color: var(--text-hint);
+    font-family: "Nunito", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .lang-switch button.active {
+    background: var(--accent);
+    color: var(--accent-text);
+  }
+  .header-doodles svg {
+    position: absolute;
+    opacity: 0.55;
+  }
+  .doodle-1 { top: 40px; right: 14px; width: 28px; height: 28px; transform: rotate(8deg); }
+  .doodle-2 { top: 78px; right: 60px; width: 20px; height: 20px; transform: rotate(-12deg); opacity: 0.35; }
+
+  #mapView {
+    display: none;
+    position: relative;
+  }
+  #mapView.active { display: block; animation: view-in 180ms ease-out; }
+  #listView.hidden { display: none; }
+
+  #mapCanvas {
+    width: 100%;
+    height: calc(100vh - 132px - 64px);
+    min-height: 260px;
+    background: var(--surface);
+  }
+
+  .map-unavailable {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: calc(100vh - 132px - 64px);
+    min-height: 260px;
+    padding: var(--space-3);
+    text-align: center;
+    color: var(--text-hint);
+    font-size: 14px;
+    gap: var(--space-1);
+  }
+  .map-unavailable strong { color: var(--text); font-size: 15px; }
+
+  .map-pin {
+    width: 34px;
+    height: 34px;
+    border-radius: 50% 50% 50% 0;
+    background: var(--accent);
+    transform: rotate(-45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 8px var(--shadow);
+    border: 2px solid var(--accent-text);
+    cursor: pointer;
+  }
+  .map-pin span, .map-pin svg {
+    transform: rotate(45deg);
+    font-size: 16px;
+    color: var(--accent-text);
+  }
+  .map-pin.multi {
+    background: var(--gold);
+  }
+  .map-pin.multi span {
+    font-weight: 700;
+    font-family: "Quicksand", sans-serif;
+  }
+
+  .map-sheet {
+    position: fixed;
+    left: var(--space-2);
+    right: var(--space-2);
+    bottom: calc(64px + var(--space-2));
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: var(--space-2);
+    box-shadow: 0 -4px 24px var(--shadow);
+    max-height: 45vh;
+    overflow-y: auto;
+    z-index: 50;
+    display: none;
+  }
+  .map-sheet.show { display: block; }
+  .map-sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-1);
+  }
+  .map-sheet-title { font-weight: 700; font-size: 15px; }
+  .map-sheet-close {
+    border: none;
+    background: var(--bg);
+    color: var(--text-hint);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .map-sheet .card {
+    margin-bottom: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+  .map-sheet .card:last-child { margin-bottom: 0; }
+
+  .toast {
+    position: fixed;
+    bottom: calc(64px + var(--space-2));
+    left: var(--space-2);
+    right: var(--space-2);
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--accent);
+    color: var(--accent-text);
+    padding: 14px 16px;
+    border-radius: 14px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px var(--shadow);
+    transform: translateY(20px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.25s ease, opacity 0.25s ease, visibility 0s linear 0.25s;
+    z-index: 100;
+  }
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: transform 0.25s ease, opacity 0.25s ease, visibility 0s linear 0s;
+  }
+
+  /* Bottom tab bar */
+  body { padding-bottom: calc(64px + var(--space-2)); }
+  .tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    display: flex;
+    justify-content: center;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    z-index: 60;
+  }
+  .tab-bar-inner {
+    display: flex;
+    width: 100%;
+    max-width: 480px;
+  }
+  .tab-bar button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: none;
+    background: transparent;
+    color: var(--text-hint);
+    font-family: "Nunito", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .tab-bar button svg { width: 22px; height: 22px; }
+  .tab-bar button.active { color: var(--accent); }
+
+  .screen { display: none; }
+  .screen.active { display: block; animation: view-in 180ms ease-out; }
+
+  .profile-order {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+  .profile-order-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .profile-order-merchant { font-family: "Quicksand", sans-serif; font-weight: 700; font-size: 15px; }
+  .profile-order-meta { color: var(--text-hint); font-size: 12px; margin-top: 2px; }
+  .status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .status-badge.reserved { background: var(--gold); color: var(--text); }
+  .status-badge.picked_up { background: var(--accent); color: var(--accent-text); }
+  .status-badge.no_show { background: var(--border); color: var(--text-hint); }
+  .status-badge.cancelled { background: var(--border); color: var(--text-hint); }
+
+  .pickup-code-display {
+    margin-top: var(--space-2);
+    padding: var(--space-2);
+    background: var(--bg);
+    border: 1.5px dashed var(--accent);
+    border-radius: 12px;
+    text-align: center;
+  }
+  .pickup-code-display .label {
+    font-size: 11px;
+    color: var(--text-hint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .pickup-code-display .code {
+    font-family: "Quicksand", sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+  }
+
+  .profile-section-title {
+    font-family: "Quicksand", sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    margin: var(--space-3) 0 var(--space-1);
+  }
+  .profile-section-title:first-child { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- Hand-drawn accent icons, in-house style: loose double-stroke outlines,
+         warm palette, never tied to a specific listing's real contents. -->
+    <g id="doodle-croissant">
+      <path d="M4 20c3-11 12-16 22-14 9 2 15 9 14 14-1 4-6 3-9 0-2-2-5-3-8-1-3 2-3 6-7 7-5 1-10-1-12-6z"
+        fill="var(--gold)" stroke="var(--text)" stroke-width="1.3" stroke-linejoin="round"/>
+      <path d="M12 17c2-1 4-1 6 1M18 12c2-1 4-1 6 1M23 21c2 0 4 1 5 3" fill="none"
+        stroke="var(--text)" stroke-width="1.1" stroke-linecap="round" opacity="0.55"/>
+    </g>
+    <g id="doodle-bread">
+      <path d="M6 17c0-7 6-11 13-11s13 4 13 11v9a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"
+        fill="var(--gold)" stroke="var(--text)" stroke-width="1.3" stroke-linejoin="round"/>
+      <path d="M12 10c1 3 1 6 0 9M19 8c1 4 1 8 0 12M26 10c1 3 1 6 0 9" fill="none"
+        stroke="var(--text)" stroke-width="1.1" stroke-linecap="round" opacity="0.5"/>
+    </g>
+    <g id="doodle-coffee">
+      <path d="M8 13h17v11c0 4-4 7-8 7s-8-3-8-7z" fill="var(--surface)"
+        stroke="var(--text)" stroke-width="1.3" stroke-linejoin="round"/>
+      <path d="M25 16h3c2 0 3 2 3 4s-1 4-3 4h-3" fill="none" stroke="var(--text)" stroke-width="1.3"/>
+      <path d="M12 13c-1-2 0-3 1-5M18 13c-1-2 0-3 1-5" fill="none"
+        stroke="var(--accent)" stroke-width="1.3" stroke-linecap="round" opacity="0.7"/>
+    </g>
+    <g id="doodle-apple">
+      <path d="M17 12c4-3 9-1 10 4 1 6-3 13-9 13s-10-7-9-13c1-5 5-6 8-4z"
+        fill="var(--accent)" stroke="var(--text)" stroke-width="1.3" stroke-linejoin="round" opacity="0.9"/>
+      <path d="M17 12c0-3 1-5 3-6" fill="none" stroke="var(--text)" stroke-width="1.3" stroke-linecap="round"/>
+      <path d="M18 8c2-2 4-2 5-1" fill="none" stroke="var(--gold)" stroke-width="1.3" stroke-linecap="round"/>
+    </g>
+
+    <!-- Flat glyph icon set: category + nav icons. Simple line strokes,
+         no gradients/detail — meant to sit inside a rounded color chip
+         (see .icon-chip), not to be shown at large size on their own. -->
+    <g id="glyph-bakery" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 11c0-4 4-7 9-7s9 3 9 7"/>
+      <path d="M3 11h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+      <path d="M8 11V8M16 11V8"/>
+    </g>
+    <g id="glyph-cafe-lunch" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="9" width="13" height="10" rx="2"/>
+      <path d="M17 11h2a2.5 2.5 0 0 1 0 5h-2"/>
+      <path d="M8 5v2M11 5v2M14 5v2"/>
+    </g>
+    <g id="glyph-restaurant-meal" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 3v7a2 2 0 0 0 4 0V3M8 3v7"/>
+      <path d="M6 3v3M10 3v3"/>
+      <path d="M8 10v11"/>
+      <path d="M17 3c-2 0-3 2-3 5s1 5 3 5 3-2 3-5-1-5-3-5z"/>
+      <path d="M17 13v8"/>
+    </g>
+    <g id="glyph-grocery" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 8h16l-1.5 10a2 2 0 0 1-2 1.7H7.5a2 2 0 0 1-2-1.7z"/>
+      <path d="M8 8V6a4 4 0 0 1 8 0v2"/>
+    </g>
+    <g id="glyph-other" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 9h16v3a2 2 0 0 1-1 1.73V19a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-5.27A2 2 0 0 1 4 12z"/>
+      <path d="M12 9V5.5a1.5 1.5 0 1 0-1.5 1.5H12M12 9V5.5A1.5 1.5 0 1 1 13.5 7H12"/>
+    </g>
+
+    <g id="glyph-browse" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/>
+      <rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/>
+      <rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/>
+      <rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>
+    </g>
+    <g id="glyph-map" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 4 3.5 6v14L9 18l6 2 5.5-2V4L15 6l-6-2z"/>
+      <path d="M9 4v14M15 6v14"/>
+    </g>
+    <g id="glyph-profile" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="3.5"/>
+      <path d="M5 20c1.2-4 4-6 7-6s5.8 2 7 6"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="screen active" id="browseScreen">
+  <header>
+    <div class="header-doodles">
+      <svg class="doodle-1" viewBox="0 0 34 34"><use href="#doodle-croissant"/></svg>
+      <svg class="doodle-2" viewBox="0 0 34 34"><use href="#doodle-apple"/></svg>
+    </div>
+    <div class="lang-switch" id="langSwitch">
+      <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="ru">RU</button>
+      <button type="button" data-lang="kk">KZ</button>
+    </div>
+    <h1 data-i18n="title">Surprise bags near you</h1>
+    <div class="filters" id="categoryFilters"></div>
+    <div class="toolbar">
+      <div class="toolbar-dropdowns">
+        <div class="dropdown" id="maxPriceDropdown">
+          <button class="dropdown-trigger" type="button">
+            <span class="dropdown-label" data-i18n="price_any">Any price</span>
+            <span class="chev">▾</span>
+          </button>
+          <div class="dropdown-menu">
+            <div class="dropdown-option selected" data-value="" data-i18n="price_any">Any price</div>
+            <div class="dropdown-option" data-value="500" data-i18n-price="500">≤ 500 ₸</div>
+            <div class="dropdown-option" data-value="1000" data-i18n-price="1000">≤ 1000 ₸</div>
+            <div class="dropdown-option" data-value="2000" data-i18n-price="2000">≤ 2000 ₸</div>
+            <div class="dropdown-option" data-value="5000" data-i18n-price="5000">≤ 5000 ₸</div>
+          </div>
+        </div>
+        <div class="dropdown" id="sortDropdown">
+          <button class="dropdown-trigger" type="button">
+            <span class="dropdown-label" data-i18n="sort_pickup">Pickup time</span>
+            <span class="chev">▾</span>
+          </button>
+          <div class="dropdown-menu">
+            <div class="dropdown-option selected" data-value="pickup" data-i18n="sort_pickup">Pickup time</div>
+            <div class="dropdown-option" data-value="price" data-i18n="sort_price">Price: low to high</div>
+          </div>
+        </div>
+      </div>
+      <div class="view-toggle" id="viewToggle">
+        <button type="button" class="active" data-view="list">
+          <svg viewBox="0 0 24 24"><use href="#glyph-browse"/></svg> <span data-i18n="tab_list">List</span>
+        </button>
+        <button type="button" data-view="map">
+          <svg viewBox="0 0 24 24"><use href="#glyph-map"/></svg> <span data-i18n="tab_map">Map</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="listView">
+    <div class="loading-state" data-i18n="loading_listings">Finding today's good stuff…</div>
+  </main>
+
+  <div id="mapView">
+    <div id="mapCanvas"></div>
+  </div>
+
+  <div class="map-sheet" id="mapSheet">
+    <div class="map-sheet-header">
+      <div class="map-sheet-title" id="mapSheetTitle"></div>
+      <button class="map-sheet-close" id="mapSheetClose">✕</button>
+    </div>
+    <div id="mapSheetCards"></div>
+  </div>
+</div>
+
+<div class="screen" id="profileScreen">
+  <header>
+    <h1 data-i18n="profile_title">Your reservations</h1>
+  </header>
+  <main id="profileContent">
+    <div class="loading-state" data-i18n="loading_orders">Loading your reservations…</div>
+  </main>
+</div>
+
+<div class="tab-bar">
+  <div class="tab-bar-inner">
+    <button type="button" class="active" data-tab="browse">
+      <svg viewBox="0 0 24 24"><use href="#glyph-browse"/></svg>
+      <span data-i18n="tab_browse">Browse</span>
+    </button>
+    <button type="button" data-tab="profile">
+      <svg viewBox="0 0 24 24"><use href="#glyph-profile"/></svg>
+      <span data-i18n="tab_profile">My bags</span>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+
+// Forced light theme — brand identity, not following Telegram's
+// dark/light setting. See feedback: users want a consistently light,
+// bright app regardless of their system theme.
+document.documentElement.dataset.scheme = "light";
+
+// --- i18n ---
+
+const TRANSLATIONS = {
+  en: {
+    title: "Surprise bags near you",
+    filter_all: "All",
+    price_any: "Any price",
+    price_le: (n) => `≤ ${n} ₸`,
+    sort_pickup: "Pickup time",
+    sort_price: "Price: low to high",
+    tab_list: "List",
+    tab_map: "Map",
+    tab_browse: "Browse",
+    tab_profile: "My bags",
+    loading_listings: "Finding today's good stuff…",
+    loading_orders: "Loading your reservations…",
+    empty_listings_title: "Nothing here right now",
+    empty_listings_body: "Try a different filter, or check back closer to closing time — that's usually when the good stuff shows up.",
+    empty_listings_error: "Couldn't load listings just now. Give it another try.",
+    empty_orders_title: "No reservations yet",
+    empty_orders_body: "Head to Browse and rescue your first surprise bag.",
+    empty_orders_error: "Couldn't load your reservations. Give it another try.",
+    reserve: "Reserve",
+    reserving: "Hang on…",
+    reserved_saved: "Saved! 🎉",
+    toast_reserved: (code) => `Nice catch! Your pickup code is ${code}.`,
+    toast_network_error: "Couldn't reach the kitchen — check your connection and try again.",
+    profile_title: "Your reservations",
+    profile_active: "Active",
+    profile_picked_up: "Picked up",
+    profile_missed: "Missed",
+    profile_show_code: "Show this at pickup",
+    map_unavailable_title: "Map view isn't set up yet",
+    map_unavailable_body: "A 2GIS API key is needed to show the map. Get one free at dev.2gis.com and add it as TWOGIS_API_KEY.",
+    status_reserved: "Upcoming",
+    status_picked_up: "Picked up",
+    status_no_show: "Expired",
+    status_cancelled: "Cancelled",
+    qty_left: (n) => `${n} left`,
+    category: {
+      bakery: "Bakery",
+      cafe_lunch: "Cafe lunch",
+      restaurant_meal: "Restaurant meal",
+      grocery: "Grocery",
+      other: "Other",
+    },
+  },
+  ru: {
+    title: "Сюрприз-пакеты рядом",
+    filter_all: "Все",
+    price_any: "Любая цена",
+    price_le: (n) => `≤ ${n} ₸`,
+    sort_pickup: "Время выдачи",
+    sort_price: "Цена: по возрастанию",
+    tab_list: "Список",
+    tab_map: "Карта",
+    tab_browse: "Каталог",
+    tab_profile: "Мои пакеты",
+    loading_listings: "Ищем сегодняшние предложения…",
+    loading_orders: "Загружаем ваши бронирования…",
+    empty_listings_title: "Здесь пока пусто",
+    empty_listings_body: "Попробуйте другой фильтр или загляните позже, ближе к закрытию — обычно тогда появляются лучшие предложения.",
+    empty_listings_error: "Не удалось загрузить предложения. Попробуйте ещё раз.",
+    empty_orders_title: "Пока нет бронирований",
+    empty_orders_body: "Перейдите в Каталог и заберите свой первый сюрприз-пакет.",
+    empty_orders_error: "Не удалось загрузить бронирования. Попробуйте ещё раз.",
+    reserve: "Забронировать",
+    reserving: "Минутучку…",
+    reserved_saved: "Готово! 🎉",
+    toast_reserved: (code) => `Отличный выбор! Ваш код получения: ${code}.`,
+    toast_network_error: "Не удалось связаться с кухней — проверьте соединение и попробуйте снова.",
+    profile_title: "Ваши бронирования",
+    profile_active: "Активные",
+    profile_picked_up: "Получены",
+    profile_missed: "Пропущены",
+    profile_show_code: "Покажите это при получении",
+    map_unavailable_title: "Карта пока не настроена",
+    map_unavailable_body: "Для карты нужен API-ключ 2GIS. Получите бесплатно на dev.2gis.com и добавьте как TWOGIS_API_KEY.",
+    status_reserved: "Предстоит",
+    status_picked_up: "Получено",
+    status_no_show: "Просрочено",
+    status_cancelled: "Отменено",
+    qty_left: (n) => `Осталось: ${n}`,
+    category: {
+      bakery: "Выпечка",
+      cafe_lunch: "Обед из кафе",
+      restaurant_meal: "Блюдо из ресторана",
+      grocery: "Продукты",
+      other: "Другое",
+    },
+  },
+  kk: {
+    title: "Жаныңыздағы сюрприз-пакеттер",
+    filter_all: "Барлығы",
+    price_any: "Бағасы кез келген де",
+    price_le: (n) => `≤ ${n} ₸`,
+    sort_pickup: "Алу уақыты",
+    sort_price: "Бағасы: арзандан қымбатқа",
+    tab_list: "Тізім",
+    tab_map: "Карта",
+    tab_browse: "Шолу",
+    tab_profile: "Багтерім",
+    loading_listings: "Бүгінгі тамашаларды іздеп жатырмыз…",
+    loading_orders: "Броньдеріңіз жүктелуде…",
+    empty_listings_title: "Қазір ештеңе ештеңе бос",
+    empty_listings_body: "Басқа сүзгіні таңдап көріңіз немесе жабу уақытына жақындатын тексеріңіз — әдетте дәл сол кезде пайда болады.",
+    empty_listings_error: "Тізімдерді жүктеу мүмкін болмады. Қайта бір талап көріңіз.",
+    empty_orders_title: "Әзірше бронь жоқ",
+    empty_orders_body: "Шолуға өтіп, алғашқы сюрприз-пакетіңізді қутқарып алыңыз.",
+    empty_orders_error: "Броньдерді жүктеу мүмкін болмады. Қайта бір талап көріңіз.",
+    reserve: "Броньдау",
+    reserving: "Сәл күтіңіз…",
+    reserved_saved: "Сақталды! 🎉",
+    toast_reserved: (code) => `Жақсы таңдау! Алу кодыңыз: ${code}.`,
+    toast_network_error: "Асханамен байланыса алмады — байланысты тексеріп, қайтадан көріңіз.",
+    profile_title: "Броньдеріңіз",
+    profile_active: "Белсенді",
+    profile_picked_up: "Алынды",
+    profile_missed: "Өткізіп алды",
+    profile_show_code: "Алу кезінде көрсетіңіз",
+    map_unavailable_title: "Карта әлі дейін дайындалмаған",
+    map_unavailable_body: "Картаны көрсету үшін 2GIS API кілті қажет. dev.2gis.com сайтынан тегін алып, TWOGIS_API_KEY ретінде қосыңыз.",
+    status_reserved: "Алды тағы",
+    status_picked_up: "Алынды",
+    status_no_show: "Мерзімі өтті",
+    status_cancelled: "Бас тартылды",
+    qty_left: (n) => `Қалды: ${n}`,
+    category: {
+      bakery: "Нан өнімі",
+      cafe_lunch: "Кафеден түскі ас",
+      restaurant_meal: "Ресторантан тағам",
+      grocery: "Азық-түлік",
+      other: "Басқа",
+    },
+  },
+};
+
+let currentLang = "en";
+
+function t(key, ...args) {
+  const dict = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  const value = dict[key] ?? TRANSLATIONS.en[key];
+  return typeof value === "function" ? value(...args) : value;
+}
+
+function categoryLabel(category) {
+  const dict = TRANSLATIONS[currentLang] || TRANSLATIONS.en;
+  return (dict.category && dict.category[category]) || TRANSLATIONS.en.category[category] || category;
+}
+
+function qtyLeftLabel(n) {
+  return t("qty_left", n);
+}
+
+function detectInitialLang() {
+  const stored = (() => {
+    try { return localStorage.getItem("lang"); } catch (e) { return null; }
+  })();
+  if (stored && TRANSLATIONS[stored]) return stored;
+
+  const tgLang = tg?.initDataUnsafe?.user?.language_code;
+  if (tgLang && TRANSLATIONS[tgLang]) return tgLang;
+
+  return "en";
+}
+
+function setLang(lang) {
+  if (!TRANSLATIONS[lang]) lang = "en";
+  currentLang = lang;
+  try { localStorage.setItem("lang", lang); } catch (e) { /* ignore */ }
+  applyStaticTranslations();
+  document.querySelectorAll(".lang-switch button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.lang === lang);
+  });
+  renderCategoryFilters();
+  renderListings();
+  if (document.getElementById("profileScreen").classList.contains("active")) {
+    loadProfile();
+  }
+}
+
+function applyStaticTranslations() {
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll("[data-i18n-price]").forEach((el) => {
+    el.textContent = t("price_le", el.dataset.i18nPrice);
+  });
+
+  // Selected dropdown labels need re-syncing since they mirror whichever
+  // option is currently selected, not a fixed key.
+  document.querySelectorAll(".dropdown").forEach((dropdown) => {
+    const selected = dropdown.querySelector(".dropdown-option.selected");
+    const label = dropdown.querySelector(".dropdown-label");
+    if (selected && label) label.textContent = selected.textContent;
+  });
+}
+
+const CATEGORY_GLYPHS = {
+  bakery: "glyph-bakery",
+  cafe_lunch: "glyph-cafe-lunch",
+  restaurant_meal: "glyph-restaurant-meal",
+  grocery: "glyph-grocery",
+  other: "glyph-other",
+};
+
+function categoryIconChip(category) {
+  const glyph = CATEGORY_GLYPHS[category] || CATEGORY_GLYPHS.other;
+  return `<span class="icon-chip cat-${category}"><svg viewBox="0 0 24 24"><use href="#${glyph}"/></svg></span>`;
+}
+
+let allListings = [];
+let activeCategory = "all";
+let maxPriceValue = "";
+let sortValue = "pickup";
+
+function getInitData() {
+  return tg?.initData || "";
+}
+
+function showToast(message) {
+  const toast = document.getElementById("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 3000);
+}
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Almaty",
+  });
+}
+
+function setupDropdown(id, onSelect) {
+  const root = document.getElementById(id);
+  const trigger = root.querySelector(".dropdown-trigger");
+  const label = root.querySelector(".dropdown-label");
+  const options = root.querySelectorAll(".dropdown-option");
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    document.querySelectorAll(".dropdown.open").forEach((d) => {
+      if (d !== root) d.classList.remove("open");
+    });
+    root.classList.toggle("open");
+  });
+
+  options.forEach((opt) => {
+    opt.addEventListener("click", () => {
+      options.forEach((o) => o.classList.remove("selected"));
+      opt.classList.add("selected");
+      label.textContent = opt.textContent;
+      root.classList.remove("open");
+      onSelect(opt.dataset.value);
+    });
+  });
+}
+
+document.addEventListener("click", () => {
+  document.querySelectorAll(".dropdown.open").forEach((d) => d.classList.remove("open"));
+});
+
+setupDropdown("maxPriceDropdown", (value) => {
+  maxPriceValue = value;
+  renderListings();
+});
+setupDropdown("sortDropdown", (value) => {
+  sortValue = value;
+  renderListings();
+});
+
+function renderCategoryFilters() {
+  const container = document.getElementById("categoryFilters");
+  const categories = ["all", ...new Set(allListings.map((l) => l.category))];
+  container.innerHTML = categories
+    .map((cat) => {
+      const label = cat === "all" ? t("filter_all") : categoryLabel(cat);
+      const active = cat === activeCategory ? "active" : "";
+      return `<button class="filter-chip ${active}" data-category="${cat}">${label}</button>`;
+    })
+    .join("");
+
+  container.querySelectorAll(".filter-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeCategory = btn.dataset.category;
+      renderCategoryFilters();
+      renderListings();
+    });
+  });
+}
+
+function getFilteredSorted() {
+  let items = allListings;
+
+  if (activeCategory !== "all") {
+    items = items.filter((l) => l.category === activeCategory);
+  }
+
+  if (maxPriceValue) {
+    items = items.filter((l) => l.discounted_price <= Number(maxPriceValue));
+  }
+
+  items = [...items].sort((a, b) => {
+    if (sortValue === "price") return a.discounted_price - b.discounted_price;
+    return new Date(a.pickup_window_start) - new Date(b.pickup_window_start);
+  });
+
+  return items;
+}
+
+function cardHtml(listing, index = 0) {
+  const photo = listing.merchant_photo_file_id
+    ? `<img src="/api/photo/${listing.merchant_photo_file_id}" alt="" />`
+    : categoryIconChip(listing.category);
+  const discountPct = Math.round(
+    (1 - listing.discounted_price / listing.original_price) * 100
+  );
+  const delay = Math.min(index, 6) * 40;
+  return `
+    <div class="card" style="animation-delay:${delay}ms">
+      <div class="card-photo">${photo}</div>
+      <div class="card-body">
+        <div class="card-merchant">${escapeHtml(listing.merchant_name)}</div>
+        <div class="card-location">${escapeHtml(listing.location_text)}</div>
+        <div class="card-category">${escapeHtml(categoryLabel(listing.category))}</div>
+        <span class="qty-badge${listing.quantity_remaining <= 2 ? " low" : ""}">${qtyLeftLabel(listing.quantity_remaining)}</span>
+        <div class="card-row">
+          <div>
+            <span class="price-original">${listing.original_price} ₸</span>
+            <span class="price-discounted">${listing.discounted_price} ₸</span>
+            <span class="savings-badge">-${discountPct}%</span>
+          </div>
+          <div class="pickup-time">${formatTime(listing.pickup_window_start)}–${formatTime(listing.pickup_window_end)}</div>
+        </div>
+        <button class="reserve-btn" data-id="${listing.id}">${t("reserve")}</button>
+      </div>
+    </div>
+  `;
+}
+
+function attachReserveHandlers(container) {
+  container.querySelectorAll(".reserve-btn").forEach((btn) => {
+    btn.addEventListener("click", () => reserveListing(Number(btn.dataset.id), btn));
+  });
+}
+
+function renderListings() {
+  const container = document.getElementById("listView");
+  const items = getFilteredSorted();
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icons">
+          <svg viewBox="0 0 34 34"><use href="#doodle-bread"/></svg>
+          <svg viewBox="0 0 34 34"><use href="#doodle-coffee"/></svg>
+        </div>
+        <strong>${t("empty_listings_title")}</strong>
+        ${t("empty_listings_body")}
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = items.map((listing, i) => cardHtml(listing, i)).join("");
+  attachReserveHandlers(container);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str ?? "";
+  return div.innerHTML;
+}
+
+async function reserveListing(listingId, buttonEl) {
+  buttonEl.disabled = true;
+  buttonEl.textContent = t("reserving");
+  try {
+    const res = await fetch(`/api/listings/${listingId}/reserve`, {
+      method: "POST",
+      headers: { "X-Telegram-Init-Data": getInitData() },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.detail || t("toast_network_error"));
+      buttonEl.disabled = false;
+      buttonEl.textContent = t("reserve");
+      return;
+    }
+    const data = await res.json();
+    playConfirmAnimation(buttonEl);
+    showToast(t("toast_reserved", data.pickup_code));
+    tg?.HapticFeedback?.notificationOccurred("success");
+    await loadListings();
+  } catch (e) {
+    showToast(t("toast_network_error"));
+    buttonEl.disabled = false;
+    buttonEl.textContent = t("reserve");
+  }
+}
+
+function playConfirmAnimation(buttonEl) {
+  buttonEl.textContent = t("reserved_saved");
+  buttonEl.classList.add("confirmed");
+}
+
+async function loadListings() {
+  try {
+    const res = await fetch("/api/listings");
+    allListings = await res.json();
+    renderCategoryFilters();
+    renderListings();
+    renderMapMarkers();
+  } catch (e) {
+    document.getElementById("listView").innerHTML =
+      `<div class="empty-state">${t("empty_listings_error")}</div>`;
+  }
+}
+
+// --- View toggle (list / map) ---
+
+const ALMATY_CENTER = [76.9286, 43.2380]; // [lng, lat] — 2GIS uses lng,lat order
+
+document.getElementById("viewToggle").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-view]");
+  if (!btn) return;
+
+  document.querySelectorAll("#viewToggle button").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  const view = btn.dataset.view;
+  document.getElementById("listView").classList.toggle("hidden", view !== "list");
+  document.getElementById("mapView").classList.toggle("active", view === "map");
+
+  if (view === "map" && mapInstance) {
+    // 2GIS needs an explicit resize kick after being unhidden.
+    setTimeout(() => mapInstance.invalidateSize?.(), 50);
+  }
+});
+
+// --- 2GIS map ---
+
+let mapInstance = null;
+let mapMarkers = [];
+let twogisApiKey = null;
+
+async function initMap() {
+  try {
+    const res = await fetch("/api/config");
+    const config = await res.json();
+    twogisApiKey = config.twogis_api_key;
+  } catch (e) {
+    twogisApiKey = null;
+  }
+
+  const mapCanvas = document.getElementById("mapCanvas");
+
+  if (!twogisApiKey || typeof mapgl === "undefined") {
+    mapCanvas.outerHTML = `
+      <div class="map-unavailable">
+        <strong>${t("map_unavailable_title")}</strong>
+        <span>${t("map_unavailable_body")}</span>
+      </div>
+    `;
+    return;
+  }
+
+  mapInstance = new mapgl.Map("mapCanvas", {
+    center: ALMATY_CENTER,
+    zoom: 12,
+    key: twogisApiKey,
+  });
+
+  renderMapMarkers();
+}
+
+function renderMapMarkers() {
+  if (!mapInstance) return;
+
+  mapMarkers.forEach((m) => m.destroy());
+  mapMarkers = [];
+
+  const items = getFilteredSorted().filter((l) => l.latitude != null && l.longitude != null);
+
+  // Group listings by merchant location so one pin represents one merchant.
+  const byMerchant = new Map();
+  items.forEach((listing) => {
+    const key = `${listing.merchant_name}|${listing.latitude}|${listing.longitude}`;
+    if (!byMerchant.has(key)) byMerchant.set(key, []);
+    byMerchant.get(key).push(listing);
+  });
+
+  byMerchant.forEach((merchantListings) => {
+    const { latitude, longitude } = merchantListings[0];
+    const isMulti = merchantListings.length > 1;
+    const glyph = CATEGORY_GLYPHS[merchantListings[0].category] || CATEGORY_GLYPHS.other;
+    const iconHtml = isMulti
+      ? `<span>${merchantListings.length}</span>`
+      : `<svg viewBox="0 0 24 24" width="16" height="16"><use href="#${glyph}"/></svg>`;
+
+    const el = document.createElement("div");
+    el.className = `map-pin${isMulti ? " multi" : ""}`;
+    el.innerHTML = iconHtml;
+    el.addEventListener("click", () => showMapSheet(merchantListings));
+
+    const marker = new mapgl.HtmlMarker(mapInstance, {
+      coordinates: [longitude, latitude],
+      html: el,
+      anchor: [17, 34],
+    });
+    mapMarkers.push(marker);
+  });
+}
+
+function showMapSheet(merchantListings) {
+  const sheet = document.getElementById("mapSheet");
+  document.getElementById("mapSheetTitle").textContent = merchantListings[0].merchant_name;
+  document.getElementById("mapSheetCards").innerHTML = merchantListings.map(cardHtml).join("");
+  attachReserveHandlers(document.getElementById("mapSheetCards"));
+  sheet.classList.add("show");
+}
+
+document.getElementById("mapSheetClose").addEventListener("click", () => {
+  document.getElementById("mapSheet").classList.remove("show");
+});
+
+document.getElementById("langSwitch").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-lang]");
+  if (!btn) return;
+  setLang(btn.dataset.lang);
+});
+
+currentLang = detectInitialLang();
+applyStaticTranslations();
+document.querySelectorAll(".lang-switch button").forEach((b) => {
+  b.classList.toggle("active", b.dataset.lang === currentLang);
+});
+
+loadListings();
+initMap();
+// Note: setLang() isn't called here on purpose — it would call
+// renderListings()/renderCategoryFilters() before allListings is
+// populated by loadListings() above. The block above mirrors setLang()'s
+// side effects minus those two calls; loadListings() renders once ready.
+
+// --- Tab bar (Browse / My bags) ---
+
+function statusLabel(status) {
+  const key = { reserved: "status_reserved", picked_up: "status_picked_up",
+                no_show: "status_no_show", cancelled: "status_cancelled" }[status];
+  return key ? t(key) : status;
+}
+
+document.querySelector(".tab-bar").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-tab]");
+  if (!btn) return;
+
+  document.querySelectorAll(".tab-bar button").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  const tab = btn.dataset.tab;
+  document.getElementById("browseScreen").classList.toggle("active", tab === "browse");
+  document.getElementById("profileScreen").classList.toggle("active", tab === "profile");
+
+  if (tab === "profile") {
+    loadProfile();
+  } else if (mapInstance) {
+    setTimeout(() => mapInstance.invalidateSize?.(), 50);
+  }
+});
+
+function orderCardHtml(order) {
+  const label = statusLabel(order.status);
+  const showCode = order.status === "reserved";
+  return `
+    <div class="profile-order">
+      <div class="profile-order-top">
+        <div>
+          <div class="profile-order-merchant">${escapeHtml(order.merchant_name)}</div>
+          <div class="profile-order-meta">${escapeHtml(categoryLabel(order.category))}</div>
+          <div class="profile-order-meta">${formatTime(order.pickup_window_start)}–${formatTime(order.pickup_window_end)}</div>
+        </div>
+        <span class="status-badge ${order.status}">${label}</span>
+      </div>
+      ${showCode ? `
+        <div class="pickup-code-display">
+          <div class="label">${t("profile_show_code")}</div>
+          <div class="code">${escapeHtml(order.pickup_code)}</div>
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+async function loadProfile() {
+  const container = document.getElementById("profileContent");
+  container.innerHTML = `<div class="loading-state">${t("loading_orders")}</div>`;
+
+  try {
+    const res = await fetch("/api/orders/me", {
+      headers: { "X-Telegram-Init-Data": getInitData() },
+    });
+    if (!res.ok) throw new Error("failed");
+    const orders = await res.json();
+
+    if (orders.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icons">
+            <svg viewBox="0 0 34 34"><use href="#doodle-croissant"/></svg>
+          </div>
+          <strong>${t("empty_orders_title")}</strong>
+          ${t("empty_orders_body")}
+        </div>
+      `;
+      return;
+    }
+
+    const active = orders.filter((o) => o.status === "reserved");
+    const past = orders.filter((o) => o.status === "picked_up");
+    const other = orders.filter((o) => o.status === "no_show" || o.status === "cancelled");
+
+    let html = "";
+    if (active.length) {
+      html += `<div class="profile-section-title">${t("profile_active")}</div>` + active.map(orderCardHtml).join("");
+    }
+    if (past.length) {
+      html += `<div class="profile-section-title">${t("profile_picked_up")}</div>` + past.map(orderCardHtml).join("");
+    }
+    if (other.length) {
+      html += `<div class="profile-section-title">${t("profile_missed")}</div>` + other.map(orderCardHtml).join("");
+    }
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state">${t("empty_orders_error")}</div>`;
+  }
+}
+</script>
+
+</body>
+</html>

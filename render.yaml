@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: surprise-bags
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn web:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: USE_WEBHOOK
+        value: "1"
+      - key: BOT_TOKEN
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: TWOGIS_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: surprise-bags-db
+          property: connectionString
+
+databases:
+  - name: surprise-bags-db
+    plan: free
