@@ -12,6 +12,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from app.db.models import CATEGORY_LABELS, LISTING_CATEGORIES, Listing, Merchant
 from app.db.session import get_session
 from app.services.orders import PickupConfirmError, confirm_pickup
+from app.services.reports import merchant_daily_stats
 from app.timezone import format_almaty, parse_hhmm_today_almaty
 
 router = Router()
@@ -300,3 +301,26 @@ async def my_listings(message: Message) -> None:
             f"{listing.discounted_price} KZT"
         )
     await message.answer("\n".join(lines))
+
+
+@router.message(Command("my_stats"))
+async def my_stats(message: Message) -> None:
+    merchant = get_merchant_by_telegram_id(message.from_user.id)
+    if merchant is None:
+        await message.answer("You're not registered as a merchant yet.")
+        return
+
+    session = get_session()
+    try:
+        stats = merchant_daily_stats(session, merchant)
+    finally:
+        session.close()
+
+    await message.answer(
+        "Today so far:\n\n"
+        f"Listings posted: {stats['listings_posted']}\n"
+        f"Bags posted: {stats['bags_posted']}\n"
+        f"Bags sold: {stats['bags_sold']}\n"
+        f"Bags remaining: {stats['bags_remaining']}\n"
+        f"No-shows: {stats['no_shows']}"
+    )
