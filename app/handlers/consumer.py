@@ -56,7 +56,7 @@ async def open_app(message: Message) -> None:
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Open Surprise Bags", web_app=WebAppInfo(url=webapp_url))]
+            [InlineKeyboardButton(text="Open Sarqyt", web_app=WebAppInfo(url=webapp_url))]
         ]
     )
     await message.answer("Browse today's surprise bags:", reply_markup=keyboard)

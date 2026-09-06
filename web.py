@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
         await bot.session.close()
 
 
-app = FastAPI(title="Surprise Bags Mini App", lifespan=lifespan)
+app = FastAPI(title="Sarqyt Mini App", lifespan=lifespan)
 
 
 @app.post(WEBHOOK_PATH)

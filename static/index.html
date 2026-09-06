@@ -3,36 +3,43 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Surprise Bags</title>
+<title>Sarqyt</title>
+<link rel="icon" type="image/png" href="/assets/sarqyt-icon-32.png" />
+<link rel="apple-touch-icon" href="/assets/sarqyt-icon-192.png" />
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#9A3324" />
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://mapgl.2gis.com/api/js/v1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Fixed brand palette — deliberately ignores Telegram's --tg-theme-*
+  /* Sarqyt brand palette — deliberately ignores Telegram's --tg-theme-*
      variables AND the user's system dark/light setting. This app is
-     always light, as a brand identity, regardless of host theme. */
+     always light, as a brand identity, regardless of host theme.
+     Locked palette — see .claude/sarqyt-mark.pdf for the source sheet. */
   :root {
-    --bg: #FAF6ED;
+    --bg: #F3E6CF;              /* parchment */
     --surface: #FFFFFF;
-    --accent: #9E2A3B;
-    --accent-text: #FBF3E3;
-    --gold: #C99A3B;
-    --text: #241C13;
-    --text-hint: #7A6E5C;
-    --border: #ECE4D2;
-    --shadow: rgba(36, 28, 19, 0.08);
+    --accent: #9A3324;          /* crimson */
+    --accent-deep: #7A2A1D;     /* crimson-deep, shadows on crimson surfaces */
+    --accent-text: #F3E6CF;     /* parchment text on crimson */
+    --gold: #C08A34;            /* gold */
+    --gold-soft: #DCBD82;       /* gold-soft, lighter accents/highlights */
+    --text: #2E2013;            /* ink */
+    --text-hint: #7A6852;       /* ink-soft */
+    --border: #E4D5B7;
+    --shadow: rgba(46, 32, 19, 0.10);
 
     --space-1: 8px;
     --space-2: 16px;
     --space-3: 24px;
 
-    --chip-bakery: #F0DDBE;
-    --chip-cafe_lunch: #ECD9C6;
-    --chip-restaurant_meal: #E9CFC9;
-    --chip-grocery: #EFE2C3;
-    --chip-other: #E6DCC8;
+    --chip-bakery: #EEDCB8;
+    --chip-cafe_lunch: #E9D5B0;
+    --chip-restaurant_meal: #E6CBB9;
+    --chip-grocery: #EBDCAE;
+    --chip-other: #E2D3B4;
   }
 
   * { box-sizing: border-box; }
@@ -41,7 +48,7 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     padding-bottom: var(--space-3);
     -webkit-font-smoothing: antialiased;
   }
@@ -56,7 +63,7 @@
   }
 
   h1 {
-    font-family: "Quicksand", "Nunito", sans-serif;
+    font-family: "Fraunces", "Manrope", serif;
     font-size: 22px;
     font-weight: 700;
     margin: 0 0 var(--space-2);
@@ -69,6 +76,37 @@
   @media (max-width: 420px) {
     #browseScreen h1 { font-size: 18px; }
   }
+
+  /* Brand lockup: icon + wordmark, per sarqyt-mark.pdf's primary lockup.
+     Clear space of one knot-diameter (~10px at this icon size) is given
+     via the gap and the margin below. */
+  .brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: var(--space-2);
+  }
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 auto;
+    display: block;
+  }
+  .brand-word {
+    font-family: "Fraunces", "Manrope", serif;
+    font-weight: 600;
+    font-size: 20px;
+    color: var(--accent);
+    letter-spacing: 0.01em;
+  }
+
+  /* On a crimson (or any dark) fill, the default mark's crimson body
+     disappears into the ground — swap to sarqyt-icon-light.svg, and the
+     wordmark to parchment. Not used by any current component (nothing in
+     this app places the mark on a crimson surface yet), but ready for the
+     next one that does — e.g. a splash/confirmation state on .reserve-btn. */
+  .brand-lockup.on-crimson .brand-mark { content: url("/assets/sarqyt-icon-light.svg"); }
+  .brand-lockup.on-crimson .brand-word { color: var(--accent-text); }
 
   .filters {
     display: flex;
@@ -270,7 +308,7 @@
   .icon-chip.cat-other { background: var(--chip-other); color: var(--text-hint); }
 
   .card-body { flex: 1; min-width: 0; }
-  .card-merchant { font-family: "Quicksand", "Nunito", sans-serif; font-weight: 700; font-size: 15px; }
+  .card-merchant { font-family: "Fraunces", "Manrope", serif; font-weight: 700; font-size: 15px; }
   .card-location { color: var(--text-hint); font-size: 12px; margin-top: 2px; }
   .card-category {
     display: inline-block;
@@ -370,7 +408,7 @@
   .empty-state-icons svg { width: 40px; height: 40px; }
   .empty-state strong {
     display: block;
-    font-family: "Quicksand", "Nunito", sans-serif;
+    font-family: "Fraunces", "Manrope", serif;
     color: var(--text);
     font-size: 16px;
     margin-bottom: 4px;
@@ -403,7 +441,7 @@
     border: none;
     background: transparent;
     color: var(--text-hint);
-    font-family: "Nunito", sans-serif;
+    font-family: "Manrope", sans-serif;
     font-size: 11px;
     font-weight: 700;
     padding: 4px 9px;
@@ -473,7 +511,7 @@
   }
   .map-pin.multi span {
     font-weight: 700;
-    font-family: "Quicksand", sans-serif;
+    font-family: "Fraunces", serif;
   }
 
   .map-sheet {
@@ -576,7 +614,7 @@
     border: none;
     background: transparent;
     color: var(--text-hint);
-    font-family: "Nunito", sans-serif;
+    font-family: "Manrope", sans-serif;
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
@@ -599,7 +637,7 @@
     justify-content: space-between;
     align-items: flex-start;
   }
-  .profile-order-merchant { font-family: "Quicksand", sans-serif; font-weight: 700; font-size: 15px; }
+  .profile-order-merchant { font-family: "Fraunces", serif; font-weight: 700; font-size: 15px; }
   .profile-order-meta { color: var(--text-hint); font-size: 12px; margin-top: 2px; }
   .status-badge {
     font-size: 11px;
@@ -629,7 +667,7 @@
     margin-bottom: 4px;
   }
   .pickup-code-display .code {
-    font-family: "Quicksand", sans-serif;
+    font-family: "Fraunces", serif;
     font-size: 32px;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -637,7 +675,7 @@
   }
 
   .profile-section-title {
-    font-family: "Quicksand", sans-serif;
+    font-family: "Fraunces", serif;
     font-weight: 700;
     font-size: 15px;
     margin: var(--space-3) 0 var(--space-1);
@@ -734,6 +772,10 @@
       <button type="button" data-lang="ru">RU</button>
       <button type="button" data-lang="kk">KZ</button>
     </div>
+    <div class="brand-lockup">
+      <img class="brand-mark" src="/assets/sarqyt-icon.svg" alt="" width="28" height="28" />
+      <span class="brand-word">Sarqyt</span>
+    </div>
     <h1 data-i18n="title">Surprise bags near you</h1>
     <div class="filters" id="categoryFilters"></div>
     <div class="toolbar">
@@ -792,6 +834,10 @@
 
 <div class="screen" id="profileScreen">
   <header>
+    <div class="brand-lockup">
+      <img class="brand-mark" src="/assets/sarqyt-icon.svg" alt="" width="28" height="28" />
+      <span class="brand-word">Sarqyt</span>
+    </div>
     <h1 data-i18n="profile_title">Your reservations</h1>
   </header>
   <main id="profileContent">
