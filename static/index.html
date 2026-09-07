@@ -54,12 +54,28 @@
   }
 
   header {
-    padding: var(--space-2) var(--space-2) var(--space-1);
+    padding: var(--space-2) 0 var(--space-1);
     position: sticky;
     top: 0;
     background: var(--bg);
     z-index: 10;
     border-bottom: 1px solid var(--border);
+  }
+
+  /* Content column: caps and centers the actual UI on wide viewports
+     (desktop Telegram, a resized browser, fullscreen) instead of letting
+     it stretch edge-to-edge. Scales continuously with viewport width via
+     max-width, not gated to one breakpoint. The header's own background/
+     border-bottom stay full-bleed; only this inner wrapper is capped.
+     Horizontal padding lives here (not on header/main) so both contexts
+     inset their content by the same amount at the same layer — otherwise
+     header content and the card grid below it end up misaligned by
+     whatever padding header/main apply on top of their own boxes. */
+  .content-col {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding-left: var(--space-2);
+    padding-right: var(--space-2);
   }
 
   h1 {
@@ -232,7 +248,8 @@
   }
 
   main {
-    padding: var(--space-2);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
     animation: view-in 180ms ease-out;
     display: grid;
     grid-template-columns: 1fr;
@@ -244,17 +261,16 @@
   }
 
   /* Desktop: wider viewport gets a multi-column card grid instead of a
-     stretched single column, and more room for the header/map. Only the
-     browse listing grid goes multi-column — the profile/orders list stays
-     single-column at any width, matching a typical "my orders" pattern. */
+     stretched single column. Only the browse listing grid goes
+     multi-column — the profile/orders list stays single-column at any
+     width, matching a typical "my orders" pattern. Content is capped and
+     centered via .content-col (see header rule above), independent of
+     these column-count breakpoints. */
   @media (min-width: 768px) {
     #listView { grid-template-columns: repeat(2, 1fr); }
   }
   @media (min-width: 1100px) {
     #listView { grid-template-columns: repeat(3, 1fr); }
-  }
-  @media (min-width: 768px) {
-    header, main { max-width: 1200px; margin-left: auto; margin-right: auto; }
   }
 
   .card {
@@ -767,60 +783,64 @@
       <svg class="doodle-1" viewBox="0 0 34 34"><use href="#doodle-croissant"/></svg>
       <svg class="doodle-2" viewBox="0 0 34 34"><use href="#doodle-apple"/></svg>
     </div>
-    <div class="lang-switch" id="langSwitch">
-      <button type="button" data-lang="en">EN</button>
-      <button type="button" data-lang="ru">RU</button>
-      <button type="button" data-lang="kk">KZ</button>
-    </div>
-    <div class="brand-lockup">
-      <img class="brand-mark" src="/assets/sarqyt-icon.svg" alt="" width="28" height="28" />
-      <span class="brand-word">Sarqyt</span>
-    </div>
-    <h1 data-i18n="title">Surprise bags near you</h1>
-    <div class="filters" id="categoryFilters"></div>
-    <div class="toolbar">
-      <div class="toolbar-dropdowns">
-        <div class="dropdown" id="maxPriceDropdown">
-          <button class="dropdown-trigger" type="button">
-            <span class="dropdown-label" data-i18n="price_any">Any price</span>
-            <span class="chev">▾</span>
-          </button>
-          <div class="dropdown-menu">
-            <div class="dropdown-option selected" data-value="" data-i18n="price_any">Any price</div>
-            <div class="dropdown-option" data-value="500" data-i18n-price="500">≤ 500 ₸</div>
-            <div class="dropdown-option" data-value="1000" data-i18n-price="1000">≤ 1000 ₸</div>
-            <div class="dropdown-option" data-value="2000" data-i18n-price="2000">≤ 2000 ₸</div>
-            <div class="dropdown-option" data-value="5000" data-i18n-price="5000">≤ 5000 ₸</div>
-          </div>
-        </div>
-        <div class="dropdown" id="sortDropdown">
-          <button class="dropdown-trigger" type="button">
-            <span class="dropdown-label" data-i18n="sort_pickup">Pickup time</span>
-            <span class="chev">▾</span>
-          </button>
-          <div class="dropdown-menu">
-            <div class="dropdown-option selected" data-value="pickup" data-i18n="sort_pickup">Pickup time</div>
-            <div class="dropdown-option" data-value="price" data-i18n="sort_price">Price: low to high</div>
-          </div>
-        </div>
+    <div class="content-col">
+      <div class="lang-switch" id="langSwitch">
+        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="ru">RU</button>
+        <button type="button" data-lang="kk">KZ</button>
       </div>
-      <div class="view-toggle" id="viewToggle">
-        <button type="button" class="active" data-view="list">
-          <svg viewBox="0 0 24 24"><use href="#glyph-browse"/></svg> <span data-i18n="tab_list">List</span>
-        </button>
-        <button type="button" data-view="map">
-          <svg viewBox="0 0 24 24"><use href="#glyph-map"/></svg> <span data-i18n="tab_map">Map</span>
-        </button>
+      <div class="brand-lockup">
+        <img class="brand-mark" src="/assets/sarqyt-icon.svg" alt="" width="28" height="28" />
+        <span class="brand-word">Sarqyt</span>
+      </div>
+      <h1 data-i18n="title">Surprise bags near you</h1>
+      <div class="filters" id="categoryFilters"></div>
+      <div class="toolbar">
+        <div class="toolbar-dropdowns">
+          <div class="dropdown" id="maxPriceDropdown">
+            <button class="dropdown-trigger" type="button">
+              <span class="dropdown-label" data-i18n="price_any">Any price</span>
+              <span class="chev">▾</span>
+            </button>
+            <div class="dropdown-menu">
+              <div class="dropdown-option selected" data-value="" data-i18n="price_any">Any price</div>
+              <div class="dropdown-option" data-value="500" data-i18n-price="500">≤ 500 ₸</div>
+              <div class="dropdown-option" data-value="1000" data-i18n-price="1000">≤ 1000 ₸</div>
+              <div class="dropdown-option" data-value="2000" data-i18n-price="2000">≤ 2000 ₸</div>
+              <div class="dropdown-option" data-value="5000" data-i18n-price="5000">≤ 5000 ₸</div>
+            </div>
+          </div>
+          <div class="dropdown" id="sortDropdown">
+            <button class="dropdown-trigger" type="button">
+              <span class="dropdown-label" data-i18n="sort_pickup">Pickup time</span>
+              <span class="chev">▾</span>
+            </button>
+            <div class="dropdown-menu">
+              <div class="dropdown-option selected" data-value="pickup" data-i18n="sort_pickup">Pickup time</div>
+              <div class="dropdown-option" data-value="price" data-i18n="sort_price">Price: low to high</div>
+            </div>
+          </div>
+        </div>
+        <div class="view-toggle" id="viewToggle">
+          <button type="button" class="active" data-view="list">
+            <svg viewBox="0 0 24 24"><use href="#glyph-browse"/></svg> <span data-i18n="tab_list">List</span>
+          </button>
+          <button type="button" data-view="map">
+            <svg viewBox="0 0 24 24"><use href="#glyph-map"/></svg> <span data-i18n="tab_map">Map</span>
+          </button>
+        </div>
       </div>
     </div>
   </header>
 
-  <main id="listView">
+  <main id="listView" class="content-col">
     <div class="loading-state" data-i18n="loading_listings">Finding today's good stuff…</div>
   </main>
 
   <div id="mapView">
-    <div id="mapCanvas"></div>
+    <div class="content-col" id="mapViewInner">
+      <div id="mapCanvas"></div>
+    </div>
   </div>
 
   <div class="map-sheet" id="mapSheet">
@@ -834,13 +854,15 @@
 
 <div class="screen" id="profileScreen">
   <header>
-    <div class="brand-lockup">
-      <img class="brand-mark" src="/assets/sarqyt-icon.svg" alt="" width="28" height="28" />
-      <span class="brand-word">Sarqyt</span>
+    <div class="content-col">
+      <div class="brand-lockup">
+        <img class="brand-mark" src="/assets/sarqyt-icon.svg" alt="" width="28" height="28" />
+        <span class="brand-word">Sarqyt</span>
+      </div>
+      <h1 data-i18n="profile_title">Your reservations</h1>
     </div>
-    <h1 data-i18n="profile_title">Your reservations</h1>
   </header>
-  <main id="profileContent">
+  <main id="profileContent" class="content-col">
     <div class="loading-state" data-i18n="loading_orders">Loading your reservations…</div>
   </main>
 </div>
