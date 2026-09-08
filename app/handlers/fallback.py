@@ -12,8 +12,10 @@ logger = logging.getLogger(__name__)
 async def unhandled_message(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
     logger.warning(
-        "unhandled message: text=%r from user=%s in state=%r",
+        "unhandled message: text=%r caption=%r has_photo=%s from user=%s in state=%r",
         message.text,
+        message.caption,
+        bool(message.photo),
         message.from_user.id,
         current_state,
     )
