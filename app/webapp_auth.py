@@ -37,7 +37,10 @@ def verify_init_data(init_data: str, bot_token: Optional[str] = None) -> dict:
     if not init_data:
         raise InitDataError("Missing initData")
 
-    pairs = parse_qsl(init_data, strict_parsing=True)
+    try:
+        pairs = parse_qsl(init_data, strict_parsing=True)
+    except ValueError as exc:
+        raise InitDataError("initData is malformed") from exc
     data = dict(pairs)
 
     received_hash = data.pop("hash", None)
