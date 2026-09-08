@@ -554,6 +554,22 @@
   }
   .card-photo img { width: 100%; height: 100%; object-fit: cover; }
 
+  /* Merchant detail ("Rescue") screen: merchant identity already shown
+     once in the header above, so package cards here go category-icon-only
+     and drop merchant photo/name/location entirely — see cardHtml()'s
+     compact branch. */
+  .card-compact .card-photo {
+    width: 56px;
+    height: 56px;
+    border: 1.4px solid var(--gold);
+  }
+  .card-row-meta {
+    justify-content: flex-start;
+    gap: var(--space-2);
+    align-items: center;
+    margin-top: 8px;
+  }
+
   /* Flat glyph presentation: icon inside a soft rounded color chip,
      category-tinted, no gradients/detail — one visual language. */
   .icon-chip {
@@ -627,21 +643,25 @@
 
   .pickup-time { font-size: 12px; color: var(--text-hint); }
 
+  /* The urgency signal ("N left") is the strongest accent element next to
+     the price — always crimson and bolder/larger than the discount
+     badge, not just when stock is critically low. A merchant-detail card
+     with only 2-3 packages to begin with makes "3 left" itself an
+     urgency signal, not a neutral inventory count. */
   .qty-badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 12.5px;
     font-weight: 700;
-    padding: 2px 9px;
+    padding: 4px 11px;
     border-radius: 999px;
     margin-top: 4px;
-    background: var(--bg);
-    color: var(--text-hint);
-  }
-  .qty-badge.low {
     background: var(--accent);
     color: var(--accent-text);
+  }
+  .qty-badge.low {
+    background: var(--accent-deep);
   }
 
   .reserve-btn {
@@ -649,7 +669,7 @@
     width: 100%;
     padding: 11px;
     border: none;
-    border-radius: 12px;
+    border-radius: 999px;
     background: var(--accent);
     color: var(--accent-text);
     font-size: 14px;
@@ -658,6 +678,10 @@
     cursor: pointer;
     letter-spacing: 0.02em;
     transition: transform 150ms ease, background 150ms ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
   }
   .reserve-btn:active { transform: scale(0.97); }
   .reserve-btn:disabled { opacity: 0.5; cursor: default; }
@@ -1632,9 +1656,20 @@ function showToast(message) {
   setTimeout(() => toast.classList.remove("show"), 3000);
 }
 
+// Rounds to the nearest :00/:15/:30/:45 before formatting. Real merchant
+// input (the bot's /post_listing HH:MM prompt) always produces exact
+// minutes, but test/seed data built from `now + timedelta(...)` inherits
+// whatever second/minute `now()` happened to be at, producing odd values
+// like 16:16 — this defends the display layer against that regardless of
+// where slightly-off data comes from. Rounding the absolute timestamp
+// (rather than the Almaty-local wall-clock minute) is safe here since
+// Asia/Almaty's UTC+5 offset has no fractional-minute component, so a
+// 15-minute rounding boundary lines up the same way in either timezone.
 function formatTime(iso) {
   const d = new Date(iso);
-  return d.toLocaleTimeString("en-GB", {
+  const roundedMs = Math.round(d.getTime() / (15 * 60 * 1000)) * (15 * 60 * 1000);
+  const rounded = new Date(roundedMs);
+  return rounded.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "Asia/Almaty",
@@ -1718,14 +1753,52 @@ function getFilteredSorted() {
   return items;
 }
 
-function cardHtml(listing, index = 0) {
-  const photo = listing.merchant_photo_file_id
-    ? `<img src="/api/photo/${listing.merchant_photo_file_id}" alt="" />`
-    : categoryIconChip(listing.category);
+// compact=true is for the merchant detail ("Rescue") screen, where every
+// card already belongs to the merchant named once in the header above —
+// showing merchant photo/name/location/description per card there is
+// pure duplication. compact mode drops all of that and always shows a
+// category icon tile instead (never the merchant photo), which also
+// matches the product rule that a listing exposes category, not the
+// merchant's storefront image, once merchant identity is already known
+// from context. The flat browse feed (compact=false, the default) still
+// needs merchant identity per card, since each card there is a different
+// merchant.
+function cardHtml(listing, index = 0, compact = false) {
   const discountPct = Math.round(
     (1 - listing.discounted_price / listing.original_price) * 100
   );
   const delay = Math.min(index, 6) * 40;
+  const isLow = listing.quantity_remaining <= 2;
+
+  if (compact) {
+    return `
+      <div class="card card-compact" style="animation-delay:${delay}ms">
+        <div class="card-photo"><span class="icon-chip cat-${listing.category}"><svg viewBox="0 0 24 24"><use href="#${CATEGORY_GLYPHS[listing.category] || CATEGORY_GLYPHS.other}"/></svg></span></div>
+        <div class="card-body">
+          <div class="card-category">${escapeHtml(categoryLabel(listing.category))}</div>
+          <div class="card-row">
+            <div>
+              <span class="price-original">${listing.original_price} ₸</span>
+              <span class="price-discounted">${listing.discounted_price} ₸</span>
+              <span class="savings-badge">-${discountPct}%</span>
+            </div>
+          </div>
+          <div class="card-row card-row-meta">
+            <span class="qty-badge${isLow ? " low" : ""}">${qtyLeftLabel(listing.quantity_remaining)}</span>
+            <div class="pickup-time">${formatTime(listing.pickup_window_start)}–${formatTime(listing.pickup_window_end)}</div>
+          </div>
+          <button class="reserve-btn" data-id="${listing.id}">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H4M4 12l6-6M4 12l6 6"/></svg>
+            ${t("reserve")}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  const photo = listing.merchant_photo_file_id
+    ? `<img src="/api/photo/${listing.merchant_photo_file_id}" alt="" />`
+    : categoryIconChip(listing.category);
   return `
     <div class="card" style="animation-delay:${delay}ms">
       <div class="card-photo">${photo}</div>
@@ -1737,7 +1810,7 @@ function cardHtml(listing, index = 0) {
         <div class="card-location">${escapeHtml(listing.location_text)}</div>
         ${listing.merchant_description ? `<div class="card-description">${escapeHtml(listing.merchant_description)}</div>` : ""}
         <div class="card-category">${escapeHtml(categoryLabel(listing.category))}</div>
-        <span class="qty-badge${listing.quantity_remaining <= 2 ? " low" : ""}">${qtyLeftLabel(listing.quantity_remaining)}</span>
+        <span class="qty-badge${isLow ? " low" : ""}">${qtyLeftLabel(listing.quantity_remaining)}</span>
         <div class="card-row">
           <div>
             <span class="price-original">${listing.original_price} ₸</span>
@@ -1878,7 +1951,7 @@ function renderMerchantDetail(merchant) {
     : `<span class="icon-chip cat-other"><svg viewBox="0 0 24 24"><use href="#glyph-other"/></svg></span>`;
 
   const bagsHtml = merchant.listings.length
-    ? merchant.listings.map((listing, i) => cardHtml(listing, i)).join("")
+    ? merchant.listings.map((listing, i) => cardHtml(listing, i, true)).join("")
     : `
       <div class="empty-state">
         <div class="empty-state-icons">
