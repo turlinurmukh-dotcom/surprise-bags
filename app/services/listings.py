@@ -50,9 +50,11 @@ def listing_to_card(listing: Listing) -> dict:
     """
     return {
         "id": listing.id,
+        "merchant_id": listing.merchant_id,
         "merchant_name": listing.merchant.name,
         "location_text": listing.merchant.location_text,
         "merchant_photo_file_id": listing.merchant.photo_file_id,
+        "merchant_description": listing.merchant.description,
         "latitude": listing.merchant.latitude,
         "longitude": listing.merchant.longitude,
         "category": listing.category,

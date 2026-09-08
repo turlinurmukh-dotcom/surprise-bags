@@ -324,8 +324,24 @@
   .icon-chip.cat-other { background: var(--chip-other); color: var(--text-hint); }
 
   .card-body { flex: 1; min-width: 0; }
+  .card-merchant-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
   .card-merchant { font-family: "Fraunces", "Manrope", serif; font-weight: 700; font-size: 15px; }
+  .card-rating { color: var(--gold); font-size: 12px; font-weight: 600; white-space: nowrap; }
   .card-location { color: var(--text-hint); font-size: 12px; margin-top: 2px; }
+  .card-description {
+    color: var(--text-hint);
+    font-size: 12px;
+    margin-top: 2px;
+    font-style: italic;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .card-category {
     display: inline-block;
     font-size: 12px;
@@ -690,6 +706,52 @@
     color: var(--accent);
   }
 
+  .review-form {
+    margin-top: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--border);
+  }
+  .review-label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .star-picker { display: flex; gap: 4px; margin-bottom: var(--space-1); }
+  .star-btn {
+    background: none;
+    border: none;
+    font-size: 26px;
+    line-height: 1;
+    color: var(--border);
+    cursor: pointer;
+    padding: 2px;
+  }
+  .star-btn.selected { color: var(--gold); }
+  .review-comment {
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-family: "Manrope", sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+    resize: vertical;
+    margin-bottom: var(--space-1);
+  }
+  .review-submit-btn {
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 999px;
+    padding: 9px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .review-submit-btn:disabled { opacity: 0.5; cursor: default; }
+
   .profile-section-title {
     font-family: "Fraunces", serif;
     font-weight: 700;
@@ -924,6 +986,13 @@ const TRANSLATIONS = {
     profile_picked_up: "Picked up",
     profile_missed: "Missed",
     profile_show_code: "Show this at pickup",
+    leave_review: "Leave a review",
+    review_comment_placeholder: "Add a comment (optional)",
+    submit_review: "Submit review",
+    submitting_review: "Sending…",
+    review_thanks: "Thanks for the review! 🌟",
+    your_rating: (n) => `Your rating: ${"★".repeat(n)}${"☆".repeat(5 - n)}`,
+    review_error: "Couldn't submit your review. Try again.",
     map_unavailable_title: "Map view isn't set up yet",
     map_unavailable_body: "A 2GIS API key is needed to show the map. Get one free at dev.2gis.com and add it as TWOGIS_API_KEY.",
     status_reserved: "Upcoming",
@@ -968,6 +1037,13 @@ const TRANSLATIONS = {
     profile_picked_up: "Получены",
     profile_missed: "Пропущены",
     profile_show_code: "Покажите это при получении",
+    leave_review: "Оставить отзыв",
+    review_comment_placeholder: "Добавьте комментарий (необязательно)",
+    submit_review: "Отправить отзыв",
+    submitting_review: "Отправляем…",
+    review_thanks: "Спасибо за отзыв! 🌟",
+    your_rating: (n) => `Ваша оценка: ${"★".repeat(n)}${"☆".repeat(5 - n)}`,
+    review_error: "Не удалось отправить отзыв. Попробуйте снова.",
     map_unavailable_title: "Карта пока не настроена",
     map_unavailable_body: "Для карты нужен API-ключ 2GIS. Получите бесплатно на dev.2gis.com и добавьте как TWOGIS_API_KEY.",
     status_reserved: "Предстоит",
@@ -1012,6 +1088,13 @@ const TRANSLATIONS = {
     profile_picked_up: "Алынды",
     profile_missed: "Өткізіп алды",
     profile_show_code: "Алу кезінде көрсетіңіз",
+    leave_review: "Пікір қалдыру",
+    review_comment_placeholder: "Пікір қосыңыз (міндетті емес)",
+    submit_review: "Пікірді жіберу",
+    submitting_review: "Жіберілуде…",
+    review_thanks: "Пікіріңізге рахмет! 🌟",
+    your_rating: (n) => `Сіздің бағаңыз: ${"★".repeat(n)}${"☆".repeat(5 - n)}`,
+    review_error: "Пікірді жіберу мүмкін болмады. Қайтадан көріңіз.",
     map_unavailable_title: "Карта әлі дейін дайындалмаған",
     map_unavailable_body: "Картаны көрсету үшін 2GIS API кілті қажет. dev.2gis.com сайтынан тегін алып, TWOGIS_API_KEY ретінде қосыңыз.",
     status_reserved: "Алды тағы",
@@ -1220,8 +1303,12 @@ function cardHtml(listing, index = 0) {
     <div class="card" style="animation-delay:${delay}ms">
       <div class="card-photo">${photo}</div>
       <div class="card-body">
-        <div class="card-merchant">${escapeHtml(listing.merchant_name)}</div>
+        <div class="card-merchant-row">
+          <div class="card-merchant">${escapeHtml(listing.merchant_name)}</div>
+          ${listing.merchant_rating ? `<span class="card-rating">★ ${listing.merchant_rating.toFixed(1)} (${listing.merchant_rating_count})</span>` : ""}
+        </div>
         <div class="card-location">${escapeHtml(listing.location_text)}</div>
+        ${listing.merchant_description ? `<div class="card-description">${escapeHtml(listing.merchant_description)}</div>` : ""}
         <div class="card-category">${escapeHtml(categoryLabel(listing.category))}</div>
         <span class="qty-badge${listing.quantity_remaining <= 2 ? " low" : ""}">${qtyLeftLabel(listing.quantity_remaining)}</span>
         <div class="card-row">
@@ -1472,6 +1559,7 @@ document.querySelector(".tab-bar").addEventListener("click", (e) => {
 function orderCardHtml(order) {
   const label = statusLabel(order.status);
   const showCode = order.status === "reserved";
+  const showReviewForm = order.status === "picked_up" && !order.reviewed;
   return `
     <div class="profile-order">
       <div class="profile-order-top">
@@ -1488,8 +1576,83 @@ function orderCardHtml(order) {
           <div class="code">${escapeHtml(order.pickup_code)}</div>
         </div>
       ` : ""}
+      ${showReviewForm ? reviewFormHtml(order.id) : ""}
     </div>
   `;
+}
+
+function reviewFormHtml(orderId) {
+  const stars = [1, 2, 3, 4, 5]
+    .map((n) => `<button type="button" class="star-btn" data-order="${orderId}" data-value="${n}" aria-label="${n}">★</button>`)
+    .join("");
+  return `
+    <div class="review-form" data-order="${orderId}">
+      <div class="review-label">${t("leave_review")}</div>
+      <div class="star-picker" data-order="${orderId}">${stars}</div>
+      <textarea class="review-comment" data-order="${orderId}" placeholder="${t("review_comment_placeholder")}" maxlength="300"></textarea>
+      <button type="button" class="review-submit-btn" data-order="${orderId}" disabled>${t("submit_review")}</button>
+    </div>
+  `;
+}
+
+function attachReviewHandlers(container) {
+  container.querySelectorAll(".star-picker").forEach((picker) => {
+    const orderId = picker.dataset.order;
+    let selected = 0;
+    picker.querySelectorAll(".star-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        selected = Number(btn.dataset.value);
+        picker.querySelectorAll(".star-btn").forEach((b) => {
+          b.classList.toggle("selected", Number(b.dataset.value) <= selected);
+        });
+        picker.dataset.selected = String(selected);
+        const submitBtn = container.querySelector(`.review-submit-btn[data-order="${orderId}"]`);
+        if (submitBtn) submitBtn.disabled = false;
+      });
+    });
+  });
+
+  container.querySelectorAll(".review-submit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => submitReview(btn.dataset.order, container));
+  });
+}
+
+async function submitReview(orderId, container) {
+  const picker = container.querySelector(`.star-picker[data-order="${orderId}"]`);
+  const rating = Number(picker?.dataset.selected || 0);
+  if (!rating) return;
+
+  const commentEl = container.querySelector(`.review-comment[data-order="${orderId}"]`);
+  const comment = commentEl?.value.trim() || null;
+  const submitBtn = container.querySelector(`.review-submit-btn[data-order="${orderId}"]`);
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = t("submitting_review");
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/review`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Telegram-Init-Data": getInitData(),
+      },
+      body: JSON.stringify({ rating, comment }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showToast(err.detail || t("review_error"));
+      submitBtn.disabled = false;
+      submitBtn.textContent = t("submit_review");
+      return;
+    }
+    showToast(t("review_thanks"));
+    tg?.HapticFeedback?.notificationOccurred("success");
+    await loadProfile();
+  } catch (e) {
+    showToast(t("review_error"));
+    submitBtn.disabled = false;
+    submitBtn.textContent = t("submit_review");
+  }
 }
 
 async function loadProfile() {
@@ -1531,6 +1694,7 @@ async function loadProfile() {
       html += `<div class="profile-section-title">${t("profile_missed")}</div>` + other.map(orderCardHtml).join("");
     }
     container.innerHTML = html;
+    attachReviewHandlers(container);
   } catch (e) {
     container.innerHTML = `<div class="empty-state">${t("empty_orders_error")}</div>`;
   }

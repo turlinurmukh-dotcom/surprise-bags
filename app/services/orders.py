@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from app.db.models import CATEGORY_LABELS, Listing, Merchant, Order, User
+from app.db.models import CATEGORY_LABELS, Listing, Merchant, Order, Review, User
 from app.services.notify import send_message
 from app.timezone import format_almaty
 
@@ -170,6 +170,14 @@ def user_orders(session: Session, user: User) -> list[dict]:
         .all()
     )
 
+    order_ids = [order.id for order in orders]
+    reviewed_order_ids = set()
+    if order_ids:
+        reviewed_order_ids = {
+            row[0]
+            for row in session.query(Review.order_id).filter(Review.order_id.in_(order_ids)).all()
+        }
+
     return [
         {
             "id": order.id,
@@ -184,6 +192,7 @@ def user_orders(session: Session, user: User) -> list[dict]:
             "pickup_window_end": order.listing.pickup_window_end,
             "picked_up_at": order.picked_up_at,
             "created_at": order.created_at,
+            "reviewed": order.id in reviewed_order_ids,
         }
         for order in orders
     ]

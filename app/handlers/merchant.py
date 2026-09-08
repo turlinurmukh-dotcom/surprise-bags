@@ -9,7 +9,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
-from app.db.models import CATEGORY_LABELS, LISTING_CATEGORIES, Listing, Merchant
+from app.db.models import (
+    CATEGORY_LABELS,
+    LISTING_CATEGORIES,
+    MERCHANT_DESCRIPTION_MAX_LEN,
+    Listing,
+    Merchant,
+)
 from app.db.session import get_session
 from app.services.orders import PickupConfirmError, confirm_pickup
 from app.services.reports import merchant_daily_stats
@@ -301,6 +307,67 @@ async def my_listings(message: Message) -> None:
             f"{listing.discounted_price} KZT"
         )
     await message.answer("\n".join(lines))
+
+
+@router.message(Command("set_photo"))
+async def set_photo(message: Message) -> None:
+    merchant = get_merchant_by_telegram_id(message.from_user.id)
+    if merchant is None:
+        await message.answer("You're not registered as a merchant yet.")
+        return
+
+    if not message.photo:
+        await message.answer(
+            "Send a photo along with (or right after) /set_photo — "
+            "this is your storefront photo, shown on all of your listings."
+        )
+        return
+
+    file_id = message.photo[-1].file_id
+    session = get_session()
+    try:
+        db_merchant = session.query(Merchant).filter_by(id=merchant.id).first()
+        db_merchant.photo_file_id = file_id
+        session.commit()
+    finally:
+        session.close()
+
+    await message.answer("Storefront photo updated — it'll show on all your listings.")
+
+
+@router.message(Command("set_description"))
+async def set_description(message: Message, command: CommandObject) -> None:
+    merchant = get_merchant_by_telegram_id(message.from_user.id)
+    if merchant is None:
+        await message.answer("You're not registered as a merchant yet.")
+        return
+
+    text = (command.args or "").strip()
+    if not text:
+        await message.answer(
+            "Usage: /set_description <short tagline> — e.g. "
+            "/set_description Fresh sourdough and pastries daily\n\n"
+            f"Keep it under {MERCHANT_DESCRIPTION_MAX_LEN} characters. "
+            "This describes your business generally, not what's in today's bag."
+        )
+        return
+
+    if len(text) > MERCHANT_DESCRIPTION_MAX_LEN:
+        await message.answer(
+            f"That's {len(text)} characters — please keep it under "
+            f"{MERCHANT_DESCRIPTION_MAX_LEN}."
+        )
+        return
+
+    session = get_session()
+    try:
+        db_merchant = session.query(Merchant).filter_by(id=merchant.id).first()
+        db_merchant.description = text
+        session.commit()
+    finally:
+        session.close()
+
+    await message.answer(f"Description updated: “{text}”")
 
 
 @router.message(Command("my_stats"))

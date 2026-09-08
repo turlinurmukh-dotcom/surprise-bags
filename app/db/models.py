@@ -30,6 +30,8 @@ CATEGORY_LABELS = {
     "other": "Surprise bag",
 }
 
+MERCHANT_DESCRIPTION_MAX_LEN = 100
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -54,6 +56,10 @@ class Merchant(Base):
     # Storefront/merchant photo shown on all of this merchant's listings.
     # Never a photo of a specific bag's contents — set once, reused everywhere.
     photo_file_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Short tagline describing the merchant generally (e.g. "Fresh sourdough
+    # and pastries daily") — not an itemized description of bag contents,
+    # which stays forbidden at the Listing level. Capped at MERCHANT_DESCRIPTION_MAX_LEN.
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     listings: Mapped[list["Listing"]] = relationship(back_populates="merchant")
@@ -115,3 +121,29 @@ class Order(Base):
 
     listing: Mapped["Listing"] = relationship(back_populates="orders")
     user: Mapped["User"] = relationship(back_populates="orders")
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+    __table_args__ = (
+        CheckConstraint("rating BETWEEN 1 AND 5", name="ck_reviews_rating_range"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # unique=True enforces one review per order at the data level — not just
+    # in application logic — since a completed pickup is the unit a review
+    # attaches to, not a user/merchant pair (a repeat customer can review
+    # each visit).
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), nullable=False, unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    merchant_id: Mapped[int] = mapped_column(ForeignKey("merchants.id"), nullable=False)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    order: Mapped["Order"] = relationship()
+    user: Mapped["User"] = relationship()
+    merchant: Mapped["Merchant"] = relationship()
+
+
+REVIEW_COMMENT_MAX_LEN = 300

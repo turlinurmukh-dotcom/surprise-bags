@@ -5,12 +5,14 @@ import logging
 import os
 import urllib.request
 from contextlib import asynccontextmanager
+from typing import Optional
 from urllib.error import HTTPError, URLError
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from app.bot_setup import build_bot_and_dispatcher
 from app.db.session import get_session
@@ -22,6 +24,7 @@ from app.services.listings import (
     reserve_listing,
 )
 from app.services.orders import user_orders
+from app.services.reviews import ReviewError, merchant_ratings_bulk, submit_review
 from app.webapp_auth import InitDataError, verify_init_data
 
 load_dotenv()
@@ -107,7 +110,14 @@ def get_config() -> dict:
 def get_listings() -> list[dict]:
     session = get_session()
     try:
-        return [_serialize_card(listing_to_card(listing)) for listing in active_listings(session)]
+        listings = active_listings(session)
+        cards = [listing_to_card(listing) for listing in listings]
+        ratings = merchant_ratings_bulk(session, [c["merchant_id"] for c in cards])
+        for card in cards:
+            rating = ratings.get(card["merchant_id"])
+            card["merchant_rating"] = rating["average"] if rating else None
+            card["merchant_rating_count"] = rating["count"] if rating else 0
+        return [_serialize_card(card) for card in cards]
     finally:
         session.close()
 
@@ -151,6 +161,29 @@ def get_my_orders(x_telegram_init_data: str = Header(default="")) -> list[dict]:
     try:
         user = get_or_create_user(session, tg_user["id"], tg_user.get("username"))
         return [_serialize_order(order) for order in user_orders(session, user)]
+    finally:
+        session.close()
+
+
+class ReviewRequest(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
+
+
+@app.post("/api/orders/{order_id}/review")
+def post_review(
+    order_id: int, body: ReviewRequest, x_telegram_init_data: str = Header(default="")
+) -> dict:
+    tg_user = _authenticate(x_telegram_init_data)
+
+    session = get_session()
+    try:
+        user = get_or_create_user(session, tg_user["id"], tg_user.get("username"))
+        try:
+            review = submit_review(session, user, order_id, body.rating, body.comment)
+        except ReviewError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"id": review.id, "rating": review.rating, "comment": review.comment}
     finally:
         session.close()
 

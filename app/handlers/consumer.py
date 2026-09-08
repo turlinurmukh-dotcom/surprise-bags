@@ -75,8 +75,11 @@ async def browse(message: Message) -> None:
         return
 
     for card in cards:
+        merchant_line = f"{card['merchant_name']} — {card['location_text']}"
+        if card["merchant_description"]:
+            merchant_line += f"\n{card['merchant_description']}"
         caption = (
-            f"{card['merchant_name']} — {card['location_text']}\n"
+            f"{merchant_line}\n"
             f"{card['category_label']}\n"
             f"~~{card['original_price']} KZT~~ → {card['discounted_price']} KZT\n"
             f"{card['quantity_remaining']} left\n"
