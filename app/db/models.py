@@ -124,9 +124,18 @@ class Order(Base):
 
 
 class Review(Base):
+    """Three separate 1-5 ratings (TooGoodToGo-style), not one overall
+    score — quality_rating/quantity_rating/variety_rating each get their
+    own CHECK constraint. The overall score is computed on read as their
+    average (see reviews.py), never stored, consistent with how
+    merchant_rating already avoids a stored running average.
+    """
+
     __tablename__ = "reviews"
     __table_args__ = (
-        CheckConstraint("rating BETWEEN 1 AND 5", name="ck_reviews_rating_range"),
+        CheckConstraint("quality_rating BETWEEN 1 AND 5", name="ck_reviews_quality_rating_range"),
+        CheckConstraint("quantity_rating BETWEEN 1 AND 5", name="ck_reviews_quantity_rating_range"),
+        CheckConstraint("variety_rating BETWEEN 1 AND 5", name="ck_reviews_variety_rating_range"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -137,7 +146,9 @@ class Review(Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), nullable=False, unique=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     merchant_id: Mapped[int] = mapped_column(ForeignKey("merchants.id"), nullable=False)
-    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    quality_rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    quantity_rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    variety_rating: Mapped[int] = mapped_column(Integer, nullable=False)
     comment: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

@@ -349,6 +349,14 @@
   .merchant-detail-location { color: var(--text-hint); font-size: 13px; margin-top: 2px; }
   .merchant-detail-description { font-size: 13px; font-style: italic; color: var(--text-hint); margin-top: 4px; }
   .merchant-detail-rating { color: var(--gold); font-size: 13px; font-weight: 600; margin-top: 6px; }
+  .merchant-detail-rating-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    font-size: 11.5px;
+    color: var(--text-hint);
+    margin-top: 3px;
+  }
   .merchant-detail-bags-title {
     font-family: "Fraunces", serif;
     font-size: 15px;
@@ -808,13 +816,25 @@
   .review-label {
     font-size: 13px;
     font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .review-dimension-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1);
     margin-bottom: 6px;
   }
-  .star-picker { display: flex; gap: 4px; margin-bottom: var(--space-1); }
+  .review-dimension-label {
+    font-size: 13px;
+    color: var(--text);
+    flex: 0 0 auto;
+  }
+  .star-picker { display: flex; gap: 2px; }
   .star-btn {
     background: none;
     border: none;
-    font-size: 26px;
+    font-size: 22px;
     line-height: 1;
     color: var(--border);
     cursor: pointer;
@@ -1105,8 +1125,10 @@ const TRANSLATIONS = {
     review_comment_placeholder: "Add a comment (optional)",
     submit_review: "Submit review",
     submitting_review: "Sending…",
-    review_thanks: "Thanks for the review! 🌟",
-    your_rating: (n) => `Your rating: ${"★".repeat(n)}${"☆".repeat(5 - n)}`,
+    review_dim_quality: "Quality",
+    review_dim_quantity: "Quantity",
+    review_dim_variety: "Variety",
+    review_thanks_overall: (overall) => `Thanks for the review! Overall: ${overall} 🌟`,
     review_error: "Couldn't submit your review. Try again.",
     back: "Back",
     earliest_pickup: "Soonest pickup",
@@ -1164,8 +1186,10 @@ const TRANSLATIONS = {
     review_comment_placeholder: "Добавьте комментарий (необязательно)",
     submit_review: "Отправить отзыв",
     submitting_review: "Отправляем…",
-    review_thanks: "Спасибо за отзыв! 🌟",
-    your_rating: (n) => `Ваша оценка: ${"★".repeat(n)}${"☆".repeat(5 - n)}`,
+    review_dim_quality: "Качество",
+    review_dim_quantity: "Количество",
+    review_dim_variety: "Разнообразие",
+    review_thanks_overall: (overall) => `Спасибо за отзыв! Итог: ${overall} 🌟`,
     review_error: "Не удалось отправить отзыв. Попробуйте снова.",
     back: "Назад",
     earliest_pickup: "Ближайшая выдача",
@@ -1223,8 +1247,10 @@ const TRANSLATIONS = {
     review_comment_placeholder: "Пікір қосыңыз (міндетті емес)",
     submit_review: "Пікірді жіберу",
     submitting_review: "Жіберілуде…",
-    review_thanks: "Пікіріңізге рахмет! 🌟",
-    your_rating: (n) => `Сіздің бағаңыз: ${"★".repeat(n)}${"☆".repeat(5 - n)}`,
+    review_dim_quality: "Сапасы",
+    review_dim_quantity: "Мөлшері",
+    review_dim_variety: "Әртүрлілігі",
+    review_thanks_overall: (overall) => `Пікіріңізге рахмет! Жалпы баға: ${overall} 🌟`,
     review_error: "Пікірді жіберу мүмкін болмады. Қайтадан көріңіз.",
     back: "Артқа",
     earliest_pickup: "Жақын арадағы алу",
@@ -1607,6 +1633,13 @@ function renderMerchantDetail(merchant) {
         <div class="merchant-detail-location">${escapeHtml(merchant.location_text)}</div>
         ${merchant.description ? `<div class="merchant-detail-description">${escapeHtml(merchant.description)}</div>` : ""}
         ${merchant.rating ? `<div class="merchant-detail-rating">★ ${merchant.rating.toFixed(1)} (${merchant.rating_count})</div>` : ""}
+        ${merchant.rating ? `
+          <div class="merchant-detail-rating-breakdown">
+            <span>${t("review_dim_quality")}: ${merchant.rating_quality.toFixed(1)}</span>
+            <span>${t("review_dim_quantity")}: ${merchant.rating_quantity.toFixed(1)}</span>
+            <span>${t("review_dim_variety")}: ${merchant.rating_variety.toFixed(1)}</span>
+          </div>
+        ` : ""}
       </div>
     </div>
     <div class="merchant-detail-bags-title">${t("available_bags")}</div>
@@ -1872,14 +1905,25 @@ function orderCardHtml(order) {
   `;
 }
 
+const REVIEW_DIMENSIONS = ["quality", "quantity", "variety"];
+
 function reviewFormHtml(orderId) {
-  const stars = [1, 2, 3, 4, 5]
-    .map((n) => `<button type="button" class="star-btn" data-order="${orderId}" data-value="${n}" aria-label="${n}">★</button>`)
-    .join("");
+  const dimensionRows = REVIEW_DIMENSIONS.map((dim) => {
+    const stars = [1, 2, 3, 4, 5]
+      .map((n) => `<button type="button" class="star-btn" data-order="${orderId}" data-dimension="${dim}" data-value="${n}" aria-label="${n}">★</button>`)
+      .join("");
+    return `
+      <div class="review-dimension-row">
+        <div class="review-dimension-label">${t("review_dim_" + dim)}</div>
+        <div class="star-picker" data-order="${orderId}" data-dimension="${dim}">${stars}</div>
+      </div>
+    `;
+  }).join("");
+
   return `
     <div class="review-form" data-order="${orderId}">
       <div class="review-label">${t("leave_review")}</div>
-      <div class="star-picker" data-order="${orderId}">${stars}</div>
+      ${dimensionRows}
       <textarea class="review-comment" data-order="${orderId}" placeholder="${t("review_comment_placeholder")}" maxlength="300"></textarea>
       <button type="button" class="review-submit-btn" data-order="${orderId}" disabled>${t("submit_review")}</button>
     </div>
@@ -1887,35 +1931,38 @@ function reviewFormHtml(orderId) {
 }
 
 function attachReviewHandlers(container) {
-  container.querySelectorAll(".star-picker").forEach((picker) => {
-    const orderId = picker.dataset.order;
-    let selected = 0;
-    picker.querySelectorAll(".star-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        selected = Number(btn.dataset.value);
-        picker.querySelectorAll(".star-btn").forEach((b) => {
-          b.classList.toggle("selected", Number(b.dataset.value) <= selected);
+  container.querySelectorAll(".review-form").forEach((form) => {
+    const orderId = form.dataset.order;
+    const selections = {};
+
+    form.querySelectorAll(".star-picker").forEach((picker) => {
+      const dimension = picker.dataset.dimension;
+      picker.querySelectorAll(".star-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const value = Number(btn.dataset.value);
+          selections[dimension] = value;
+          picker.querySelectorAll(".star-btn").forEach((b) => {
+            b.classList.toggle("selected", Number(b.dataset.value) <= value);
+          });
+          const submitBtn = form.querySelector(".review-submit-btn");
+          const allDimensionsRated = REVIEW_DIMENSIONS.every((d) => selections[d]);
+          if (submitBtn) submitBtn.disabled = !allDimensionsRated;
         });
-        picker.dataset.selected = String(selected);
-        const submitBtn = container.querySelector(`.review-submit-btn[data-order="${orderId}"]`);
-        if (submitBtn) submitBtn.disabled = false;
       });
     });
-  });
 
-  container.querySelectorAll(".review-submit-btn").forEach((btn) => {
-    btn.addEventListener("click", () => submitReview(btn.dataset.order, container));
+    form.querySelector(".review-submit-btn")?.addEventListener("click", () => {
+      submitReview(orderId, form, selections);
+    });
   });
 }
 
-async function submitReview(orderId, container) {
-  const picker = container.querySelector(`.star-picker[data-order="${orderId}"]`);
-  const rating = Number(picker?.dataset.selected || 0);
-  if (!rating) return;
+async function submitReview(orderId, form, selections) {
+  if (!REVIEW_DIMENSIONS.every((d) => selections[d])) return;
 
-  const commentEl = container.querySelector(`.review-comment[data-order="${orderId}"]`);
+  const commentEl = form.querySelector(".review-comment");
   const comment = commentEl?.value.trim() || null;
-  const submitBtn = container.querySelector(`.review-submit-btn[data-order="${orderId}"]`);
+  const submitBtn = form.querySelector(".review-submit-btn");
 
   submitBtn.disabled = true;
   submitBtn.textContent = t("submitting_review");
@@ -1927,7 +1974,12 @@ async function submitReview(orderId, container) {
         "Content-Type": "application/json",
         "X-Telegram-Init-Data": getInitData(),
       },
-      body: JSON.stringify({ rating, comment }),
+      body: JSON.stringify({
+        quality_rating: selections.quality,
+        quantity_rating: selections.quantity,
+        variety_rating: selections.variety,
+        comment,
+      }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -1936,7 +1988,8 @@ async function submitReview(orderId, container) {
       submitBtn.textContent = t("submit_review");
       return;
     }
-    showToast(t("review_thanks"));
+    const data = await res.json();
+    showToast(t("review_thanks_overall", data.overall));
     tg?.HapticFeedback?.notificationOccurred("success");
     await loadProfile();
   } catch (e) {

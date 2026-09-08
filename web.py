@@ -27,7 +27,12 @@ from app.services.listings import (
     reserve_listing,
 )
 from app.services.orders import user_orders
-from app.services.reviews import ReviewError, merchant_rating, merchant_ratings_bulk, submit_review
+from app.services.reviews import (
+    ReviewError,
+    merchant_rating_breakdown,
+    merchant_ratings_bulk,
+    submit_review,
+)
 from app.webapp_auth import InitDataError, verify_init_data
 
 load_dotenv()
@@ -164,7 +169,7 @@ def get_merchant_detail(merchant_id: int) -> dict:
 
         listings = active_listings_for_merchant(session, merchant_id)
         cards = [_serialize_card(listing_to_card(listing)) for listing in listings]
-        rating = merchant_rating(session, merchant_id)
+        breakdown = merchant_rating_breakdown(session, merchant_id)
 
         return {
             "id": merchant.id,
@@ -174,8 +179,11 @@ def get_merchant_detail(merchant_id: int) -> dict:
             "description": merchant.description,
             "latitude": merchant.latitude,
             "longitude": merchant.longitude,
-            "rating": rating["average"],
-            "rating_count": rating["count"],
+            "rating": breakdown["overall"],
+            "rating_count": breakdown["count"],
+            "rating_quality": breakdown["quality"],
+            "rating_quantity": breakdown["quantity"],
+            "rating_variety": breakdown["variety"],
             "listings": cards,
         }
     finally:
@@ -226,7 +234,9 @@ def get_my_orders(x_telegram_init_data: str = Header(default="")) -> list[dict]:
 
 
 class ReviewRequest(BaseModel):
-    rating: int = Field(ge=1, le=5)
+    quality_rating: int = Field(ge=1, le=5)
+    quantity_rating: int = Field(ge=1, le=5)
+    variety_rating: int = Field(ge=1, le=5)
     comment: Optional[str] = None
 
 
@@ -240,10 +250,28 @@ def post_review(
     try:
         user = get_or_create_user(session, tg_user["id"], tg_user.get("username"))
         try:
-            review = submit_review(session, user, order_id, body.rating, body.comment)
+            review = submit_review(
+                session,
+                user,
+                order_id,
+                body.quality_rating,
+                body.quantity_rating,
+                body.variety_rating,
+                body.comment,
+            )
         except ReviewError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return {"id": review.id, "rating": review.rating, "comment": review.comment}
+        overall = round(
+            (review.quality_rating + review.quantity_rating + review.variety_rating) / 3.0, 1
+        )
+        return {
+            "id": review.id,
+            "quality_rating": review.quality_rating,
+            "quantity_rating": review.quantity_rating,
+            "variety_rating": review.variety_rating,
+            "overall": overall,
+            "comment": review.comment,
+        }
     finally:
         session.close()
 
