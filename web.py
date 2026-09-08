@@ -15,16 +15,19 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app.bot_setup import build_bot_and_dispatcher
+from app.db.models import Merchant
 from app.db.session import get_session
 from app.services.listings import (
     ReservationError,
     active_listings,
+    active_listings_for_merchant,
+    active_merchants,
     get_or_create_user,
     listing_to_card,
     reserve_listing,
 )
 from app.services.orders import user_orders
-from app.services.reviews import ReviewError, merchant_ratings_bulk, submit_review
+from app.services.reviews import ReviewError, merchant_rating, merchant_ratings_bulk, submit_review
 from app.webapp_auth import InitDataError, verify_init_data
 
 load_dotenv()
@@ -118,6 +121,63 @@ def get_listings() -> list[dict]:
             card["merchant_rating"] = rating["average"] if rating else None
             card["merchant_rating_count"] = rating["count"] if rating else 0
         return [_serialize_card(card) for card in cards]
+    finally:
+        session.close()
+
+
+def _serialize_merchant_summary(merchant: dict) -> dict:
+    return {
+        **merchant,
+        "earliest_pickup_start": merchant["earliest_pickup_start"].isoformat(),
+    }
+
+
+@app.get("/api/merchants")
+def get_merchants() -> list[dict]:
+    """Consumer-facing merchant list — the new default Browse view. One row
+    per merchant with at least one active listing, sorted by soonest pickup.
+    """
+    session = get_session()
+    try:
+        merchants = active_merchants(session)
+        ratings = merchant_ratings_bulk(session, [m["id"] for m in merchants])
+        for merchant in merchants:
+            rating = ratings.get(merchant["id"])
+            merchant["rating"] = rating["average"] if rating else None
+            merchant["rating_count"] = rating["count"] if rating else 0
+        return [_serialize_merchant_summary(m) for m in merchants]
+    finally:
+        session.close()
+
+
+@app.get("/api/merchants/{merchant_id}")
+def get_merchant_detail(merchant_id: int) -> dict:
+    """Merchant detail screen: profile fields + this merchant's active bags,
+    using the same listing_to_card() shape as the old flat feed so the
+    Mini App can reuse its existing bag-card component unchanged.
+    """
+    session = get_session()
+    try:
+        merchant = session.get(Merchant, merchant_id)
+        if merchant is None:
+            raise HTTPException(status_code=404, detail="Merchant not found")
+
+        listings = active_listings_for_merchant(session, merchant_id)
+        cards = [_serialize_card(listing_to_card(listing)) for listing in listings]
+        rating = merchant_rating(session, merchant_id)
+
+        return {
+            "id": merchant.id,
+            "name": merchant.name,
+            "location_text": merchant.location_text,
+            "photo_file_id": merchant.photo_file_id,
+            "description": merchant.description,
+            "latitude": merchant.latitude,
+            "longitude": merchant.longitude,
+            "rating": rating["average"],
+            "rating_count": rating["count"],
+            "listings": cards,
+        }
     finally:
         session.close()
 

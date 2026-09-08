@@ -43,6 +43,61 @@ def active_listings(session: Session) -> list[Listing]:
     )
 
 
+def active_listings_for_merchant(session: Session, merchant_id: int) -> list[Listing]:
+    """A single merchant's active listings, for the merchant detail screen.
+    Same active-listing rules as active_listings(), just scoped to one
+    merchant instead of returning the whole feed.
+    """
+    expire_overdue_orders(session)
+    now = datetime.now(timezone.utc)
+    return (
+        session.query(Listing)
+        .filter(
+            Listing.merchant_id == merchant_id,
+            Listing.status == "active",
+            Listing.quantity_remaining > 0,
+            Listing.pickup_window_end >= now,
+        )
+        .order_by(Listing.pickup_window_start)
+        .all()
+    )
+
+
+def active_merchants(session: Session) -> list[dict]:
+    """Consumer-facing merchant list: one row per merchant with at least
+    one active listing, grouped from active_listings() rather than a
+    separate query. pickup_window_start shown is the EARLIEST across that
+    merchant's active listings — the most actionable single data point
+    ("what can I get soonest here"), not a start-end range, since a range
+    describes overall availability but doesn't tell the user whether to
+    go now or come back later. Also used to sort the list soonest-first.
+    """
+    listings = active_listings(session)
+
+    merchants: dict[int, dict] = {}
+    for listing in listings:
+        merchant = listing.merchant
+        entry = merchants.get(merchant.id)
+        if entry is None:
+            merchants[merchant.id] = {
+                "id": merchant.id,
+                "name": merchant.name,
+                "location_text": merchant.location_text,
+                "photo_file_id": merchant.photo_file_id,
+                "description": merchant.description,
+                "latitude": merchant.latitude,
+                "longitude": merchant.longitude,
+                "earliest_pickup_start": listing.pickup_window_start,
+                "bag_count": 1,
+            }
+        else:
+            entry["bag_count"] += 1
+            if listing.pickup_window_start < entry["earliest_pickup_start"]:
+                entry["earliest_pickup_start"] = listing.pickup_window_start
+
+    return sorted(merchants.values(), key=lambda m: m["earliest_pickup_start"])
+
+
 def listing_to_card(listing: Listing) -> dict:
     """Consumer-facing view of a listing. Deliberately excludes any field
     that could reveal the bag's specific contents — category label and

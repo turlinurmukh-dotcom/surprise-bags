@@ -273,6 +273,89 @@
     #listView { grid-template-columns: repeat(3, 1fr); }
   }
 
+  .card, .merchant-card {
+    display: flex;
+    gap: var(--space-2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: var(--space-2);
+    box-shadow: 0 2px 8px var(--shadow);
+    animation: card-in 220ms ease-out backwards;
+  }
+  .merchant-card {
+    align-items: center;
+    cursor: pointer;
+    border: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    color: inherit;
+  }
+  .merchant-card:active { transform: scale(0.99); }
+  .merchant-card .card-photo { width: 64px; height: 64px; }
+  .merchant-card-body { flex: 1; min-width: 0; }
+  .merchant-card-pickup {
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .merchant-card-bag-count {
+    font-size: 12px;
+    color: var(--text-hint);
+    margin-top: 2px;
+  }
+  .merchant-card-chevron {
+    flex: 0 0 auto;
+    color: var(--text-hint);
+  }
+
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    padding: var(--space-1) 0;
+    cursor: pointer;
+  }
+
+  .merchant-detail-header {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+    margin-bottom: var(--space-2);
+  }
+  .merchant-detail-photo {
+    width: 88px;
+    height: 88px;
+    border-radius: 18px;
+    background: var(--bg);
+    flex: 0 0 auto;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+  }
+  .merchant-detail-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .merchant-detail-name { font-family: "Fraunces", serif; font-weight: 700; font-size: 20px; }
+  .merchant-detail-location { color: var(--text-hint); font-size: 13px; margin-top: 2px; }
+  .merchant-detail-description { font-size: 13px; font-style: italic; color: var(--text-hint); margin-top: 4px; }
+  .merchant-detail-rating { color: var(--gold); font-size: 13px; font-weight: 600; margin-top: 6px; }
+  .merchant-detail-bags-title {
+    font-family: "Fraunces", serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin: var(--space-1) 0 var(--space-1);
+  }
+
   .card {
     display: flex;
     gap: var(--space-2);
@@ -497,6 +580,7 @@
   }
   #mapView.active { display: block; animation: view-in 180ms ease-out; }
   #listView.hidden { display: none; }
+  .hidden { display: none !important; }
 
   #mapCanvas {
     width: 100%;
@@ -855,10 +939,17 @@
         <img class="brand-mark" src="/assets/sarqyt-heart-192.png" alt="" width="28" height="28" />
         <span class="brand-word">Sarqyt</span>
       </div>
-      <h1 data-i18n="title">Surprise bags near you</h1>
-      <div class="filters" id="categoryFilters"></div>
+      <h1 data-i18n="title">Cafes near you</h1>
+      <!-- Category filter chips and price/sort dropdowns are hidden for
+           now — they still filter/sort the old flat bag feed (allListings)
+           behind the scenes, but that feed is no longer the visible Browse
+           view now that it shows a merchant list instead. Filter scope
+           (merchant list vs. per-merchant bags vs. both) is an explicit
+           pending decision for this restructure, not yet wired to the new
+           screen. -->
+      <div class="filters hidden" id="categoryFilters"></div>
       <div class="toolbar">
-        <div class="toolbar-dropdowns">
+        <div class="toolbar-dropdowns hidden">
           <div class="dropdown" id="maxPriceDropdown">
             <button class="dropdown-trigger" type="button">
               <span class="dropdown-label" data-i18n="price_any">Any price</span>
@@ -929,6 +1020,20 @@
   </main>
 </div>
 
+<div class="screen" id="merchantDetailScreen">
+  <header>
+    <div class="content-col">
+      <button type="button" class="back-btn" id="merchantDetailBack">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span data-i18n="back">Back</span>
+      </button>
+    </div>
+  </header>
+  <main id="merchantDetailContent" class="content-col">
+    <div class="loading-state" data-i18n="loading_listings">Finding today's good stuff…</div>
+  </main>
+</div>
+
 <div class="tab-bar">
   <div class="tab-bar-inner">
     <button type="button" class="active" data-tab="browse">
@@ -958,7 +1063,7 @@ document.documentElement.dataset.scheme = "light";
 
 const TRANSLATIONS = {
   en: {
-    title: "Surprise bags near you",
+    title: "Cafes near you",
     filter_all: "All",
     price_any: "Any price",
     price_le: (n) => `≤ ${n} ₸`,
@@ -993,6 +1098,13 @@ const TRANSLATIONS = {
     review_thanks: "Thanks for the review! 🌟",
     your_rating: (n) => `Your rating: ${"★".repeat(n)}${"☆".repeat(5 - n)}`,
     review_error: "Couldn't submit your review. Try again.",
+    back: "Back",
+    earliest_pickup: "Soonest pickup",
+    bag_count_one: "1 bag available",
+    bag_count_other: (n) => `${n} bags available`,
+    available_bags: "Available bags",
+    empty_merchant_title: "No bags left right now",
+    empty_merchant_body: "This cafe's bags were just claimed — check back later or browse other cafes.",
     map_unavailable_title: "Map view isn't set up yet",
     map_unavailable_body: "A 2GIS API key is needed to show the map. Get one free at dev.2gis.com and add it as TWOGIS_API_KEY.",
     status_reserved: "Upcoming",
@@ -1009,7 +1121,7 @@ const TRANSLATIONS = {
     },
   },
   ru: {
-    title: "Сюрприз-пакеты рядом",
+    title: "Кафе рядом с вами",
     filter_all: "Все",
     price_any: "Любая цена",
     price_le: (n) => `≤ ${n} ₸`,
@@ -1044,6 +1156,13 @@ const TRANSLATIONS = {
     review_thanks: "Спасибо за отзыв! 🌟",
     your_rating: (n) => `Ваша оценка: ${"★".repeat(n)}${"☆".repeat(5 - n)}`,
     review_error: "Не удалось отправить отзыв. Попробуйте снова.",
+    back: "Назад",
+    earliest_pickup: "Ближайшая выдача",
+    bag_count_one: "1 пакет доступен",
+    bag_count_other: (n) => `${n} пакетов доступно`,
+    available_bags: "Доступные пакеты",
+    empty_merchant_title: "Сейчас пакетов нет",
+    empty_merchant_body: "Пакеты этого кафе только что разобрали — загляните позже или посмотрите другие кафе.",
     map_unavailable_title: "Карта пока не настроена",
     map_unavailable_body: "Для карты нужен API-ключ 2GIS. Получите бесплатно на dev.2gis.com и добавьте как TWOGIS_API_KEY.",
     status_reserved: "Предстоит",
@@ -1060,7 +1179,7 @@ const TRANSLATIONS = {
     },
   },
   kk: {
-    title: "Жаныңыздағы сюрприз-пакеттер",
+    title: "Жаныңыздағы кафелер",
     filter_all: "Барлығы",
     price_any: "Бағасы кез келген де",
     price_le: (n) => `≤ ${n} ₸`,
@@ -1095,6 +1214,13 @@ const TRANSLATIONS = {
     review_thanks: "Пікіріңізге рахмет! 🌟",
     your_rating: (n) => `Сіздің бағаңыз: ${"★".repeat(n)}${"☆".repeat(5 - n)}`,
     review_error: "Пікірді жіберу мүмкін болмады. Қайтадан көріңіз.",
+    back: "Артқа",
+    earliest_pickup: "Жақын арадағы алу",
+    bag_count_one: "1 пакет қолжетімді",
+    bag_count_other: (n) => `${n} пакет қолжетімді`,
+    available_bags: "Қолжетімді пакеттер",
+    empty_merchant_title: "Қазір пакет жоқ",
+    empty_merchant_body: "Бұл кафенің пакеттерін жаңа ғана алып кетті — кейінірек қараңыз немесе басқа кафелерді шолыңыз.",
     map_unavailable_title: "Карта әлі дейін дайындалмаған",
     map_unavailable_body: "Картаны көрсету үшін 2GIS API кілті қажет. dev.2gis.com сайтынан тегін алып, TWOGIS_API_KEY ретінде қосыңыз.",
     status_reserved: "Алды тағы",
@@ -1353,6 +1479,142 @@ function renderListings() {
   attachReserveHandlers(container);
 }
 
+// --- Merchant list (new default Browse view) ---
+
+let allMerchants = [];
+
+function merchantCardHtml(merchant, index = 0) {
+  const photo = merchant.photo_file_id
+    ? `<img src="/api/photo/${merchant.photo_file_id}" alt="" />`
+    : `<span class="icon-chip cat-other"><svg viewBox="0 0 24 24"><use href="#glyph-other"/></svg></span>`;
+  const delay = Math.min(index, 6) * 40;
+  const bagCountLabel = merchant.bag_count === 1 ? t("bag_count_one") : t("bag_count_other", merchant.bag_count);
+  return `
+    <button type="button" class="merchant-card" style="animation-delay:${delay}ms" data-merchant-id="${merchant.id}">
+      <div class="card-photo">${photo}</div>
+      <div class="merchant-card-body">
+        <div class="card-merchant-row">
+          <div class="card-merchant">${escapeHtml(merchant.name)}</div>
+          ${merchant.rating ? `<span class="card-rating">★ ${merchant.rating.toFixed(1)} (${merchant.rating_count})</span>` : ""}
+        </div>
+        <div class="card-location">${escapeHtml(merchant.location_text)}</div>
+        <div class="merchant-card-pickup">${t("earliest_pickup")}: ${formatTime(merchant.earliest_pickup_start)}</div>
+        <div class="merchant-card-bag-count">${bagCountLabel}</div>
+      </div>
+      <div class="merchant-card-chevron">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </button>
+  `;
+}
+
+function attachMerchantCardHandlers(container) {
+  container.querySelectorAll(".merchant-card").forEach((btn) => {
+    btn.addEventListener("click", () => openMerchantDetail(Number(btn.dataset.merchantId)));
+  });
+}
+
+function renderMerchantList() {
+  const container = document.getElementById("listView");
+
+  if (allMerchants.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icons">
+          <svg viewBox="0 0 34 34"><use href="#doodle-bread"/></svg>
+          <svg viewBox="0 0 34 34"><use href="#doodle-coffee"/></svg>
+        </div>
+        <strong>${t("empty_listings_title")}</strong>
+        ${t("empty_listings_body")}
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = allMerchants.map((m, i) => merchantCardHtml(m, i)).join("");
+  attachMerchantCardHandlers(container);
+}
+
+async function loadMerchants() {
+  try {
+    const res = await fetch("/api/merchants");
+    allMerchants = await res.json();
+    renderMerchantList();
+  } catch (e) {
+    document.getElementById("listView").innerHTML =
+      `<div class="empty-state">${t("empty_listings_error")}</div>`;
+  }
+}
+
+// --- Merchant detail screen ---
+
+let currentMerchantId = null;
+
+async function openMerchantDetail(merchantId) {
+  currentMerchantId = merchantId;
+  document.getElementById("browseScreen").classList.remove("active");
+  document.getElementById("merchantDetailScreen").classList.add("active");
+  document.querySelector(".tab-bar").classList.add("hidden");
+  await loadMerchantDetail();
+}
+
+function closeMerchantDetail() {
+  currentMerchantId = null;
+  document.getElementById("merchantDetailScreen").classList.remove("active");
+  document.getElementById("browseScreen").classList.add("active");
+  document.querySelector(".tab-bar").classList.remove("hidden");
+}
+
+document.getElementById("merchantDetailBack").addEventListener("click", closeMerchantDetail);
+
+function renderMerchantDetail(merchant) {
+  const container = document.getElementById("merchantDetailContent");
+
+  const photo = merchant.photo_file_id
+    ? `<img src="/api/photo/${merchant.photo_file_id}" alt="" />`
+    : `<span class="icon-chip cat-other"><svg viewBox="0 0 24 24"><use href="#glyph-other"/></svg></span>`;
+
+  const bagsHtml = merchant.listings.length
+    ? merchant.listings.map((listing, i) => cardHtml(listing, i)).join("")
+    : `
+      <div class="empty-state">
+        <div class="empty-state-icons">
+          <svg viewBox="0 0 34 34"><use href="#doodle-bread"/></svg>
+        </div>
+        <strong>${t("empty_merchant_title")}</strong>
+        ${t("empty_merchant_body")}
+      </div>
+    `;
+
+  container.innerHTML = `
+    <div class="merchant-detail-header">
+      <div class="merchant-detail-photo">${photo}</div>
+      <div>
+        <div class="merchant-detail-name">${escapeHtml(merchant.name)}</div>
+        <div class="merchant-detail-location">${escapeHtml(merchant.location_text)}</div>
+        ${merchant.description ? `<div class="merchant-detail-description">${escapeHtml(merchant.description)}</div>` : ""}
+        ${merchant.rating ? `<div class="merchant-detail-rating">★ ${merchant.rating.toFixed(1)} (${merchant.rating_count})</div>` : ""}
+      </div>
+    </div>
+    <div class="merchant-detail-bags-title">${t("available_bags")}</div>
+    ${bagsHtml}
+  `;
+  attachReserveHandlers(container);
+}
+
+async function loadMerchantDetail() {
+  if (currentMerchantId == null) return;
+  const container = document.getElementById("merchantDetailContent");
+  try {
+    const res = await fetch(`/api/merchants/${currentMerchantId}`);
+    if (!res.ok) throw new Error("failed");
+    const merchant = await res.json();
+    renderMerchantDetail(merchant);
+  } catch (e) {
+    container.innerHTML = `<div class="empty-state">${t("empty_listings_error")}</div>`;
+  }
+}
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str ?? "";
@@ -1372,13 +1634,19 @@ async function reserveListing(listingId, buttonEl) {
       showToast(err.detail || t("toast_network_error"));
       buttonEl.disabled = false;
       buttonEl.textContent = t("reserve");
+      // Someone else may have just taken the last bag — refresh whichever
+      // view is showing this listing so it reflects reality instead of a
+      // stale reservable card.
+      if (currentMerchantId != null) await loadMerchantDetail();
+      else await loadListings();
       return;
     }
     const data = await res.json();
     playConfirmAnimation(buttonEl);
     showToast(t("toast_reserved", data.pickup_code));
     tg?.HapticFeedback?.notificationOccurred("success");
-    await loadListings();
+    if (currentMerchantId != null) await loadMerchantDetail();
+    else await loadListings();
   } catch (e) {
     showToast(t("toast_network_error"));
     buttonEl.disabled = false;
@@ -1392,15 +1660,20 @@ function playConfirmAnimation(buttonEl) {
 }
 
 async function loadListings() {
+  // Feeds allListings for the map view only, now that the default Browse
+  // view is the merchant list (see loadMerchants()) rather than this flat
+  // bag feed. renderCategoryFilters()/renderListings() no longer run from
+  // here since #listView is now the merchant list's container — the old
+  // per-bag category filter bar and flat feed are still wired to
+  // allListings but not currently reachable from any visible control,
+  // pending the filter-scope decision for step 3 of this restructure.
   try {
     const res = await fetch("/api/listings");
     allListings = await res.json();
-    renderCategoryFilters();
-    renderListings();
     renderMapMarkers();
   } catch (e) {
-    document.getElementById("listView").innerHTML =
-      `<div class="empty-state">${t("empty_listings_error")}</div>`;
+    // Map markers just won't populate; this is a background data load for
+    // a view the user may not even open, so no user-facing error state.
   }
 }
 
@@ -1523,12 +1796,16 @@ document.querySelectorAll(".lang-switch button").forEach((b) => {
   b.classList.toggle("active", b.dataset.lang === currentLang);
 });
 
+loadMerchants();
 loadListings();
 initMap();
 // Note: setLang() isn't called here on purpose — it would call
 // renderListings()/renderCategoryFilters() before allListings is
 // populated by loadListings() above. The block above mirrors setLang()'s
-// side effects minus those two calls; loadListings() renders once ready.
+// side effects minus those two calls; loadListings()/loadMerchants() render
+// once ready. loadListings() still runs (in addition to the new
+// loadMerchants()) because allListings feeds the map view and category
+// filter data, both untouched by this browsing restructure for now.
 
 // --- Tab bar (Browse / My bags) ---
 
