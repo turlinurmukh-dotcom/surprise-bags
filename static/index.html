@@ -12,7 +12,7 @@
 <script src="https://mapgl.2gis.com/api/js/v1"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* Sarqyt brand palette — deliberately ignores Telegram's --tg-theme-*
      variables AND the user's system dark/light setting. This app is
@@ -40,6 +40,20 @@
     --chip-restaurant_meal: #E6CBB9;
     --chip-grocery: #EBDCAE;
     --chip-other: #E2D3B4;
+
+    /* --font-wordmark: the literal "Sarqyt" brand lockup ONLY — Fraunces
+       has no Cyrillic glyphs, so it must never be used for translatable
+       text. Everything else (headings, merchant names, UI copy in all
+       three languages) uses --font-ui.
+       --font-ui: Noto Sans — verified via Google Fonts' own served CSS to
+       cover Latin, standard Russian Cyrillic, AND the five Kazakh-specific
+       Cyrillic letters (Ә Ғ Қ Ң Ұ, plus Ө Һ І) across its cyrillic and
+       cyrillic-ext subsets at weights 400/500/600/700. Manrope covered
+       Russian but silently dropped to a fallback font mid-word for those
+       Kazakh letters specifically — replaced everywhere, not just in KZ
+       mode, so EN/RU/KZ render with one consistent typeface. */
+    --font-wordmark: "Fraunces", serif;
+    --font-ui: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
   * { box-sizing: border-box; }
@@ -48,7 +62,7 @@
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--font-ui);
     padding-bottom: var(--space-3);
     -webkit-font-smoothing: antialiased;
   }
@@ -79,7 +93,7 @@
   }
 
   h1 {
-    font-family: "Fraunces", "Manrope", serif;
+    font-family: var(--font-ui);
     font-size: 22px;
     font-weight: 700;
     margin: 0 0 var(--space-2);
@@ -109,7 +123,9 @@
     display: block;
   }
   .brand-word {
-    font-family: "Fraunces", "Manrope", serif;
+    /* The literal "Sarqyt" wordmark — always Latin, regardless of
+       interface language, so this is the one place Fraunces belongs. */
+    font-family: var(--font-wordmark);
     font-weight: 600;
     font-size: 20px;
     color: var(--accent);
@@ -345,7 +361,7 @@
     font-size: 34px;
   }
   .merchant-detail-photo img { width: 100%; height: 100%; object-fit: cover; }
-  .merchant-detail-name { font-family: "Fraunces", serif; font-weight: 700; font-size: 20px; }
+  .merchant-detail-name { font-family: var(--font-ui); font-weight: 700; font-size: 20px; }
   .merchant-detail-location { color: var(--text-hint); font-size: 13px; margin-top: 2px; }
   .merchant-detail-description { font-size: 13px; font-style: italic; color: var(--text-hint); margin-top: 4px; }
   .merchant-detail-rating { color: var(--gold); font-size: 13px; font-weight: 600; margin-top: 6px; }
@@ -358,7 +374,7 @@
     margin-top: 3px;
   }
   .merchant-detail-bags-title {
-    font-family: "Fraunces", serif;
+    font-family: var(--font-ui);
     font-size: 15px;
     font-weight: 700;
     margin: var(--space-1) 0 var(--space-1);
@@ -410,7 +426,7 @@
     text-align: center;
   }
   .stat-card-value {
-    font-family: "Fraunces", serif;
+    font-family: var(--font-ui);
     font-size: 28px;
     font-weight: 700;
     color: var(--accent);
@@ -472,7 +488,7 @@
     margin-bottom: var(--space-1);
   }
   .pickup-row-code {
-    font-family: "Fraunces", serif;
+    font-family: var(--font-ui);
     font-size: 20px;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -594,7 +610,7 @@
     gap: 6px;
     flex-wrap: wrap;
   }
-  .card-merchant { font-family: "Fraunces", "Manrope", serif; font-weight: 700; font-size: 15px; }
+  .card-merchant { font-family: var(--font-ui); font-weight: 700; font-size: 15px; }
   .card-rating { color: var(--gold); font-size: 12px; font-weight: 600; white-space: nowrap; }
   .card-location { color: var(--text-hint); font-size: 12px; margin-top: 2px; }
   .card-description {
@@ -740,7 +756,7 @@
   .empty-state-icons svg { width: 40px; height: 40px; }
   .empty-state strong {
     display: block;
-    font-family: "Fraunces", "Manrope", serif;
+    font-family: var(--font-ui);
     color: var(--text);
     font-size: 16px;
     margin-bottom: 4px;
@@ -773,7 +789,7 @@
     border: none;
     background: transparent;
     color: var(--text-hint);
-    font-family: "Manrope", sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 700;
     padding: 4px 9px;
@@ -844,7 +860,7 @@
   }
   .map-pin.multi span {
     font-weight: 700;
-    font-family: "Fraunces", serif;
+    font-family: var(--font-ui);
   }
 
   .map-sheet {
@@ -947,7 +963,7 @@
     border: none;
     background: transparent;
     color: var(--text-hint);
-    font-family: "Manrope", sans-serif;
+    font-family: var(--font-ui);
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
@@ -967,7 +983,7 @@
     cursor: pointer;
   }
   .reservation-detail-price {
-    font-family: "Fraunces", serif;
+    font-family: var(--font-ui);
     font-weight: 700;
     font-size: 20px;
     color: var(--accent);
@@ -978,7 +994,7 @@
     justify-content: space-between;
     align-items: flex-start;
   }
-  .profile-order-merchant { font-family: "Fraunces", serif; font-weight: 700; font-size: 15px; }
+  .profile-order-merchant { font-family: var(--font-ui); font-weight: 700; font-size: 15px; }
   .profile-order-meta { color: var(--text-hint); font-size: 12px; margin-top: 2px; }
   .status-badge {
     font-size: 11px;
@@ -1008,7 +1024,7 @@
     margin-bottom: 4px;
   }
   .pickup-code-display .code {
-    font-family: "Fraunces", serif;
+    font-family: var(--font-ui);
     font-size: 32px;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -1054,7 +1070,7 @@
     padding: 8px 10px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    font-family: "Manrope", sans-serif;
+    font-family: var(--font-ui);
     font-size: 13px;
     color: var(--text);
     background: var(--surface);
@@ -1074,7 +1090,7 @@
   .review-submit-btn:disabled { opacity: 0.5; cursor: default; }
 
   .profile-section-title {
-    font-family: "Fraunces", serif;
+    font-family: var(--font-ui);
     font-weight: 700;
     font-size: 15px;
     margin: var(--space-3) 0 var(--space-1);
