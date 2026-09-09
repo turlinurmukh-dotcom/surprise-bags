@@ -70,6 +70,74 @@ DEMO_MERCHANTS = [
         "latitude": 43.2224,
         "longitude": 76.9517,
     },
+    # Second batch — fictional Almaty cafes/bakeries/restaurants, added for
+    # broader merchant-list/map testing at a more realistic count. Explicitly
+    # NOT real businesses — inventing a name rather than naming an actual
+    # Almaty cafe avoids implying a real business offers surprise bags
+    # without their consent.
+    {
+        "name": "Zolotoy Kolos Bakery",
+        "location_text": "Gagarin Ave 105, near Kazakh-British Technical University, Almaty",
+        "contact_phone": "+77010000007",
+        "telegram_id": 900000007,
+        "latitude": 43.2137,
+        "longitude": 76.8975,
+        "description": "Wood-fired bread and pastries since morning",
+    },
+    {
+        "name": "Shanyrak Cafe",
+        "location_text": "Rozybakiyev St 247, near KazNU main campus, Almaty",
+        "contact_phone": "+77010000008",
+        "telegram_id": 900000008,
+        "latitude": 43.2015,
+        "longitude": 76.9105,
+        "description": "Home-style lunches, student-friendly prices",
+    },
+    {
+        "name": "Nomad Kitchen",
+        "location_text": "Nazarbayev Ave 130, near Almaty Mall, Almaty",
+        "contact_phone": "+77010000009",
+        "telegram_id": 900000009,
+        "latitude": 43.2445,
+        "longitude": 76.9464,
+        "description": "Modern Kazakh-fusion dinners, evening surplus",
+    },
+    {
+        "name": "Green Basket Market",
+        "location_text": "Baizakov St 280, near Almaty Arena, Almaty",
+        "contact_phone": "+77010000010",
+        "telegram_id": 900000010,
+        "latitude": 43.1998,
+        "longitude": 76.8801,
+        "description": "Neighborhood grocer, fresh produce daily",
+    },
+    {
+        "name": "Dostyk Coffee House",
+        "location_text": "Dostyk Ave 200, near Almaty Twin Towers, Almaty",
+        "contact_phone": "+77010000011",
+        "telegram_id": 900000011,
+        "latitude": 43.2298,
+        "longitude": 76.9553,
+        "description": "Specialty coffee and light lunches all day",
+    },
+    {
+        "name": "Baiterek Bistro",
+        "location_text": "Abylai Khan Ave 63, near Almaty Tower, Almaty",
+        "contact_phone": "+77010000012",
+        "telegram_id": 900000012,
+        "latitude": 43.2601,
+        "longitude": 76.9451,
+        "description": "Sit-down bistro, seasonal evening menu",
+    },
+    {
+        "name": "Alatau Pekarnya",
+        "location_text": "Timiryazev St 42, near KazNAU, Almaty",
+        "contact_phone": "+77010000013",
+        "telegram_id": 900000013,
+        "latitude": 43.2079,
+        "longitude": 76.9271,
+        "description": "Family bakery, sourdough and sweet pastries",
+    },
 ]
 
 
@@ -141,6 +209,39 @@ def seed_demo_data() -> None:
         # Aroma Lunchbox — cafe_lunch, later today, last-unit urgency case.
         ("Aroma Lunchbox", "cafe_lunch", 2600, 1000, 5, 5, timedelta(hours=4), timedelta(hours=6)),
         ("Aroma Lunchbox", "cafe_lunch", 1900, 1500, 4, 1, timedelta(hours=7), timedelta(hours=9)),
+
+        # Second batch — staggered across the day (late morning through late
+        # evening) so the merchant list's soonest-pickup sort has real
+        # variety to sort over, rather than everything clustered near "now".
+
+        # Zolotoy Kolos Bakery — bakery, high quantity (bakeries produce
+        # more units), afternoon pickup.
+        ("Zolotoy Kolos Bakery", "bakery", 2400, 1000, 8, 8, timedelta(hours=2), timedelta(hours=3)),
+        ("Zolotoy Kolos Bakery", "bakery", 1600, 700, 6, 6, timedelta(hours=5), timedelta(hours=6)),
+
+        # Shanyrak Cafe — cafe_lunch, midday pickup, student-lunch pricing.
+        ("Shanyrak Cafe", "cafe_lunch", 1800, 800, 5, 5, timedelta(hours=1), timedelta(hours=2)),
+
+        # Nomad Kitchen — restaurant_meal, evening dinner pickup, lower
+        # quantity than a bakery.
+        ("Nomad Kitchen", "restaurant_meal", 4500, 2000, 3, 3, timedelta(hours=8), timedelta(hours=9, minutes=30)),
+        ("Nomad Kitchen", "restaurant_meal", 3800, 1700, 2, 2, timedelta(hours=9), timedelta(hours=10)),
+
+        # Green Basket Market — grocery, wide all-day pickup window,
+        # moderate quantity.
+        ("Green Basket Market", "grocery", 3000, 1400, 6, 6, timedelta(hours=3), timedelta(hours=11)),
+
+        # Dostyk Coffee House — cafe_lunch, late-afternoon pickup.
+        ("Dostyk Coffee House", "cafe_lunch", 2000, 900, 4, 4, timedelta(hours=6), timedelta(hours=7)),
+        ("Dostyk Coffee House", "cafe_lunch", 1500, 650, 5, 5, timedelta(hours=6, minutes=30), timedelta(hours=7, minutes=30)),
+
+        # Baiterek Bistro — restaurant_meal, evening pickup, lowest quantity
+        # (sit-down restaurant, not a high-volume bakery).
+        ("Baiterek Bistro", "restaurant_meal", 5000, 2200, 2, 2, timedelta(hours=10), timedelta(hours=11)),
+
+        # Alatau Pekarnya — bakery, early-evening pickup, high quantity.
+        ("Alatau Pekarnya", "bakery", 2200, 950, 7, 7, timedelta(hours=4), timedelta(hours=5)),
+        ("Alatau Pekarnya", "bakery", 1400, 600, 5, 5, timedelta(hours=7), timedelta(hours=8)),
     ]
 
     created = 0
