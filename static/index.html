@@ -1196,16 +1196,15 @@
         <span class="brand-word">Sarqyt</span>
       </div>
       <h1 data-i18n="title">Cafes near you</h1>
-      <!-- Category filter chips and price/sort dropdowns are hidden for
-           now — they still filter/sort the old flat bag feed (allListings)
-           behind the scenes, but that feed is no longer the visible Browse
-           view now that it shows a merchant list instead. Filter scope
-           (merchant list vs. per-merchant bags vs. both) is an explicit
-           pending decision for this restructure, not yet wired to the new
-           screen. -->
-      <div class="filters hidden" id="categoryFilters"></div>
+      <!-- Category filter chips and price/sort dropdowns filter/sort the
+           merchant list (allMerchants), not individual bags — a merchant
+           matches if ANY of its active bags fit the filter. Decided when
+           this was rewired: filters narrow which merchants are worth
+           opening; the merchant detail screen intentionally shows all of
+           an opened merchant's bags unfiltered. -->
+      <div class="filters" id="categoryFilters"></div>
       <div class="toolbar">
-        <div class="toolbar-dropdowns hidden">
+        <div class="toolbar-dropdowns">
           <div class="dropdown" id="maxPriceDropdown">
             <button class="dropdown-trigger" type="button">
               <span class="dropdown-label" data-i18n="price_any">Any price</span>
@@ -1661,7 +1660,7 @@ function setLang(lang) {
     b.classList.toggle("active", b.dataset.lang === lang);
   });
   renderCategoryFilters();
-  renderListings();
+  renderMerchantList();
   if (document.getElementById("profileScreen").classList.contains("active")) {
     loadProfile();
   }
@@ -1767,16 +1766,17 @@ document.addEventListener("click", () => {
 
 setupDropdown("maxPriceDropdown", (value) => {
   maxPriceValue = value;
-  renderListings();
+  renderMerchantList();
+  renderMapMarkers();
 });
 setupDropdown("sortDropdown", (value) => {
   sortValue = value;
-  renderListings();
+  renderMerchantList();
 });
 
 function renderCategoryFilters() {
   const container = document.getElementById("categoryFilters");
-  const categories = ["all", ...new Set(allListings.map((l) => l.category))];
+  const categories = ["all", ...new Set(allMerchants.flatMap((m) => m.categories || []))];
   container.innerHTML = categories
     .map((cat) => {
       const label = cat === "all" ? t("filter_all") : categoryLabel(cat);
@@ -1789,25 +1789,34 @@ function renderCategoryFilters() {
     btn.addEventListener("click", () => {
       activeCategory = btn.dataset.category;
       renderCategoryFilters();
-      renderListings();
+      renderMerchantList();
+      renderMapMarkers();
     });
   });
 }
 
-function getFilteredSorted() {
-  let items = allListings;
+// Filters/sorts the MERCHANT list (not individual bags) — a merchant
+// matches the category filter if ANY of their active listings are in
+// that category, and the price filter if their cheapest active bag is at
+// or under the chosen threshold. This scope was decided deliberately
+// when the browse screen was restructured into a merchant list: filters
+// narrow which merchants are worth opening, not which of an already-
+// opened merchant's few bags to look at (see the merchant detail screen,
+// which intentionally shows all of that merchant's bags unfiltered).
+function getFilteredSortedMerchants() {
+  let items = allMerchants;
 
   if (activeCategory !== "all") {
-    items = items.filter((l) => l.category === activeCategory);
+    items = items.filter((m) => (m.categories || []).includes(activeCategory));
   }
 
   if (maxPriceValue) {
-    items = items.filter((l) => l.discounted_price <= Number(maxPriceValue));
+    items = items.filter((m) => m.min_price <= Number(maxPriceValue));
   }
 
   items = [...items].sort((a, b) => {
-    if (sortValue === "price") return a.discounted_price - b.discounted_price;
-    return new Date(a.pickup_window_start) - new Date(b.pickup_window_start);
+    if (sortValue === "price") return a.min_price - b.min_price;
+    return new Date(a.earliest_pickup_start) - new Date(b.earliest_pickup_start);
   });
 
   return items;
@@ -1894,28 +1903,6 @@ function attachReserveHandlers(container) {
   });
 }
 
-function renderListings() {
-  const container = document.getElementById("listView");
-  const items = getFilteredSorted();
-
-  if (items.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icons">
-          <svg viewBox="0 0 34 34"><use href="#doodle-bread"/></svg>
-          <svg viewBox="0 0 34 34"><use href="#doodle-coffee"/></svg>
-        </div>
-        <strong>${t("empty_listings_title")}</strong>
-        ${t("empty_listings_body")}
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = items.map((listing, i) => cardHtml(listing, i)).join("");
-  attachReserveHandlers(container);
-}
-
 // --- Merchant list (new default Browse view) ---
 
 const MERCHANT_DESCRIPTION_MAX_LEN = 100;
@@ -1970,7 +1957,24 @@ function renderMerchantList() {
     return;
   }
 
-  container.innerHTML = allMerchants.map((m, i) => merchantCardHtml(m, i)).join("");
+  const items = getFilteredSortedMerchants();
+  if (items.length === 0) {
+    // Distinct from the "nothing anywhere" case above — merchants exist,
+    // just none match the current filter, so the fix is "adjust filters"
+    // not "check back later".
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icons">
+          <svg viewBox="0 0 34 34"><use href="#doodle-bread"/></svg>
+        </div>
+        <strong>${t("empty_listings_title")}</strong>
+        ${t("empty_listings_body")}
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = items.map((m, i) => merchantCardHtml(m, i)).join("");
   attachMerchantCardHandlers(container);
 }
 
@@ -1978,6 +1982,7 @@ async function loadMerchants() {
   try {
     const res = await fetch("/api/merchants");
     allMerchants = await res.json();
+    renderCategoryFilters();
     renderMerchantList();
   } catch (e) {
     document.getElementById("listView").innerHTML =
@@ -2105,17 +2110,29 @@ async function reserveListing(listingId, buttonEl) {
       buttonEl.textContent = t("reserve");
       // Someone else may have just taken the last bag — refresh whichever
       // view is showing this listing so it reflects reality instead of a
-      // stale reservable card.
-      if (currentMerchantId != null) await loadMerchantDetail();
-      else await loadListings();
+      // stale reservable card. loadMerchants() also refreshes alongside
+      // loadListings() when reserving from the map sheet (not a merchant
+      // detail screen), so the merchant list's own bag_count/min_price
+      // don't go stale too — found while auditing for the same
+      // "still pointing at old state" pattern as the filter fix above.
+      if (currentMerchantId != null) {
+        await loadMerchantDetail();
+      } else {
+        await loadListings();
+        await loadMerchants();
+      }
       return;
     }
     const data = await res.json();
     playConfirmAnimation(buttonEl);
     showToast(t("toast_reserved", data.pickup_code));
     tg?.HapticFeedback?.notificationOccurred("success");
-    if (currentMerchantId != null) await loadMerchantDetail();
-    else await loadListings();
+    if (currentMerchantId != null) {
+      await loadMerchantDetail();
+    } else {
+      await loadListings();
+      await loadMerchants();
+    }
   } catch (e) {
     showToast(t("toast_network_error"));
     buttonEl.disabled = false;
@@ -2129,13 +2146,11 @@ function playConfirmAnimation(buttonEl) {
 }
 
 async function loadListings() {
-  // Feeds allListings for the map view only, now that the default Browse
-  // view is the merchant list (see loadMerchants()) rather than this flat
-  // bag feed. renderCategoryFilters()/renderListings() no longer run from
-  // here since #listView is now the merchant list's container — the old
-  // per-bag category filter bar and flat feed are still wired to
-  // allListings but not currently reachable from any visible control,
-  // pending the filter-scope decision for step 3 of this restructure.
+  // Feeds allListings for the map view only — the default Browse view is
+  // the merchant list (see loadMerchants()), which reads from allMerchants
+  // instead. renderMapMarkers() applies the same activeCategory/
+  // maxPriceValue filter state as the merchant list (see its own comment)
+  // so List and Map stay in sync when a filter changes.
   try {
     const res = await fetch("/api/listings");
     allListings = await res.json();
@@ -2214,7 +2229,21 @@ function renderMapMarkers() {
   mapMarkers.forEach((m) => m.destroy());
   mapMarkers = [];
 
-  const items = getFilteredSorted().filter((l) => l.latitude != null && l.longitude != null);
+  // Explicitly applies the same category/price filter state as the
+  // merchant list (activeCategory/maxPriceValue are shared module-level
+  // state, deliberately — filtering the list and switching to Map should
+  // show the same narrowed set of merchants, not silently diverge). Built
+  // straight from allListings rather than routing through the dead
+  // getFilteredSorted()/allListings pairing that predates the merchant-
+  // list restructure — that path happened to look correct only because
+  // the filters were disconnected until now.
+  let items = allListings.filter((l) => l.latitude != null && l.longitude != null);
+  if (activeCategory !== "all") {
+    items = items.filter((l) => l.category === activeCategory);
+  }
+  if (maxPriceValue) {
+    items = items.filter((l) => l.discounted_price <= Number(maxPriceValue));
+  }
 
   // Group listings by merchant location so one pin represents one merchant.
   const byMerchant = new Map();
@@ -2279,12 +2308,14 @@ checkMerchantStatus();
 loadListings();
 initMap();
 // Note: setLang() isn't called here on purpose — it would call
-// renderListings()/renderCategoryFilters() before allListings is
-// populated by loadListings() above. The block above mirrors setLang()'s
-// side effects minus those two calls; loadListings()/loadMerchants() render
-// once ready. loadListings() still runs (in addition to the new
-// loadMerchants()) because allListings feeds the map view and category
-// filter data, both untouched by this browsing restructure for now.
+// renderMerchantList()/renderCategoryFilters() before allMerchants is
+// populated by loadMerchants() above. The block above mirrors setLang()'s
+// side effects minus those two calls; loadMerchants() renders once ready.
+// loadListings() still runs separately because allListings feeds the map
+// view (per-bag markers grouped into per-merchant pins) — the merchant
+// list's own filters/sort now read from allMerchants instead, fixed
+// after having been left disconnected since the merchant-list
+// restructure (they were deliberately hidden then, pending this rewiring).
 
 // --- Tab bar (Browse / My bags) ---
 

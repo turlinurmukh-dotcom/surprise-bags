@@ -75,6 +75,7 @@ def active_merchants(session: Session) -> list[dict]:
     listings = active_listings(session)
 
     merchants: dict[int, dict] = {}
+    categories: dict[int, set] = {}
     for listing in listings:
         merchant = listing.merchant
         entry = merchants.get(merchant.id)
@@ -89,11 +90,23 @@ def active_merchants(session: Session) -> list[dict]:
                 "longitude": merchant.longitude,
                 "earliest_pickup_start": listing.pickup_window_start,
                 "bag_count": 1,
+                # min_price: cheapest active bag this merchant currently has —
+                # lets the consumer price filter mean "merchants with at
+                # least one bag at or under this price", not an average or
+                # a specific-listing price the merchant card doesn't show.
+                "min_price": listing.discounted_price,
             }
+            categories[merchant.id] = {listing.category}
         else:
             entry["bag_count"] += 1
             if listing.pickup_window_start < entry["earliest_pickup_start"]:
                 entry["earliest_pickup_start"] = listing.pickup_window_start
+            if listing.discounted_price < entry["min_price"]:
+                entry["min_price"] = listing.discounted_price
+            categories[merchant.id].add(listing.category)
+
+    for merchant_id, entry in merchants.items():
+        entry["categories"] = sorted(categories[merchant_id])
 
     return sorted(merchants.values(), key=lambda m: m["earliest_pickup_start"])
 
