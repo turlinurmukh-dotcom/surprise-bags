@@ -188,6 +188,7 @@ def user_orders(session: Session, user: User) -> list[dict]:
             "category_label": CATEGORY_LABELS[order.listing.category],
             "merchant_name": order.listing.merchant.name,
             "location_text": order.listing.merchant.location_text,
+            "discounted_price": order.listing.discounted_price,
             "pickup_window_start": order.listing.pickup_window_start,
             "pickup_window_end": order.listing.pickup_window_end,
             "picked_up_at": order.picked_up_at,

@@ -936,6 +936,14 @@
     border-radius: 16px;
     padding: var(--space-2);
     margin-bottom: var(--space-2);
+    cursor: pointer;
+  }
+  .reservation-detail-price {
+    font-family: "Fraunces", serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--accent);
+    margin-top: 4px;
   }
   .profile-order-top {
     display: flex;
@@ -1222,6 +1230,14 @@
   <main id="profileContent" class="content-col">
     <div class="loading-state" data-i18n="loading_orders">Loading your reservations…</div>
   </main>
+
+  <div class="map-sheet" id="reservationSheet">
+    <div class="map-sheet-header">
+      <div class="map-sheet-title" id="reservationSheetTitle"></div>
+      <button class="map-sheet-close" id="reservationSheetClose">✕</button>
+    </div>
+    <div id="reservationSheetContent"></div>
+  </div>
 </div>
 
 <div class="screen" id="merchantDetailScreen">
@@ -1922,11 +1938,32 @@ async function loadMerchants() {
   }
 }
 
+// --- Overlay state (single source of truth) ---
+//
+// Any view that layers on top of the normal tab content — the full-screen
+// merchant detail view, the map-pin bottom sheet, and any future overlay
+// (a rating screen, a filter panel, etc.) — must register itself here so
+// switching tabs can never leave a stale overlay stacked on top of
+// whatever's underneath. activeOverlay is the ONE flag that says what's
+// currently open; there is deliberately no second "is X visible" state
+// (a CSS class, a boolean) that could drift out of sync with it. Adding a
+// new overlay means adding one case to closeAllOverlays(), not touching
+// every navigation entry point that could switch away from it.
+let activeOverlay = null; // null | "merchantDetail" | "mapSheet"
+
+function closeAllOverlays() {
+  if (activeOverlay === "merchantDetail") closeMerchantDetail();
+  else if (activeOverlay === "mapSheet") closeMapSheet();
+  else if (activeOverlay === "reservationDetail") closeReservationDetail();
+}
+
 // --- Merchant detail screen ---
 
 let currentMerchantId = null;
 
 async function openMerchantDetail(merchantId) {
+  closeAllOverlays();
+  activeOverlay = "merchantDetail";
   currentMerchantId = merchantId;
   document.getElementById("browseScreen").classList.remove("active");
   document.getElementById("merchantDetailScreen").classList.add("active");
@@ -1935,6 +1972,7 @@ async function openMerchantDetail(merchantId) {
 }
 
 function closeMerchantDetail() {
+  activeOverlay = null;
   currentMerchantId = null;
   document.getElementById("merchantDetailScreen").classList.remove("active");
   document.getElementById("browseScreen").classList.add("active");
@@ -2069,6 +2107,11 @@ document.getElementById("viewToggle").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-view]");
   if (!btn) return;
 
+  // Switching List <-> Map must always close whatever overlay (map-pin
+  // sheet, merchant detail) is currently open, regardless of which view
+  // it was opened from — see activeOverlay/closeAllOverlays() above.
+  closeAllOverlays();
+
   document.querySelectorAll("#viewToggle button").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
 
@@ -2157,16 +2200,20 @@ function renderMapMarkers() {
 }
 
 function showMapSheet(merchantListings) {
-  const sheet = document.getElementById("mapSheet");
+  closeAllOverlays();
+  activeOverlay = "mapSheet";
   document.getElementById("mapSheetTitle").textContent = merchantListings[0].merchant_name;
   document.getElementById("mapSheetCards").innerHTML = merchantListings.map(cardHtml).join("");
   attachReserveHandlers(document.getElementById("mapSheetCards"));
-  sheet.classList.add("show");
+  document.getElementById("mapSheet").classList.add("show");
 }
 
-document.getElementById("mapSheetClose").addEventListener("click", () => {
+function closeMapSheet() {
+  activeOverlay = null;
   document.getElementById("mapSheet").classList.remove("show");
-});
+}
+
+document.getElementById("mapSheetClose").addEventListener("click", closeMapSheet);
 
 document.getElementById("langSwitch").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-lang]");
@@ -2203,6 +2250,11 @@ function statusLabel(status) {
 document.querySelector(".tab-bar").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-tab]");
   if (!btn) return;
+
+  // Same rule as the List/Map toggle: switching the main Browse/My bags/
+  // Dashboard tab must never leave an overlay (map-pin sheet, merchant
+  // detail) stacked on top of the newly-selected tab.
+  closeAllOverlays();
 
   document.querySelectorAll(".tab-bar button").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
@@ -2507,12 +2559,72 @@ async function uploadDashboardPhoto(file) {
   }
 }
 
+// --- Reservation detail sheet ---
+//
+// Before this, a customer's only view of a merchant's address was while
+// browsing — after reserving, "My Bags" showed everything EXCEPT the
+// address, so a successful reservation gave no way back to "where do I
+// go for pickup" short of remembering it from browsing. This reuses the
+// merchant detail screen's own address styling (.merchant-detail-location)
+// rather than inventing new markup for the same piece of information.
+function reservationDetailHtml(order) {
+  const priceHtml = order.discounted_price != null
+    ? `<div class="reservation-detail-price">${order.discounted_price} ₸</div>`
+    : "";
+  return `
+    <div class="merchant-detail-location">${escapeHtml(order.location_text)}</div>
+    ${priceHtml}
+    <div class="profile-order-meta" style="margin-top: 8px;">${escapeHtml(categoryLabel(order.category))}</div>
+    <div class="profile-order-meta">${formatTime(order.pickup_window_start)}–${formatTime(order.pickup_window_end)}</div>
+    ${order.status === "reserved" ? `
+      <div class="pickup-code-display">
+        <div class="label">${t("profile_show_code")}</div>
+        <div class="code">${escapeHtml(order.pickup_code)}</div>
+      </div>
+    ` : ""}
+  `;
+}
+
+function openReservationDetail(order) {
+  closeAllOverlays();
+  activeOverlay = "reservationDetail";
+  document.getElementById("reservationSheetTitle").textContent = order.merchant_name;
+  document.getElementById("reservationSheetContent").innerHTML = reservationDetailHtml(order);
+  document.getElementById("reservationSheet").classList.add("show");
+}
+
+function closeReservationDetail() {
+  activeOverlay = null;
+  document.getElementById("reservationSheet").classList.remove("show");
+}
+
+document.getElementById("reservationSheetClose").addEventListener("click", closeReservationDetail);
+
+function attachOrderDetailHandlers(container, orders) {
+  const byId = new Map(orders.map((o) => [o.id, o]));
+  container.querySelectorAll(".profile-order").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      // Don't open the sheet when the tap was actually on the review form
+      // or the pickup-code block — those already have their own purpose.
+      if (e.target.closest(".review-form") || e.target.closest(".pickup-code-display")) return;
+      const order = byId.get(Number(card.dataset.orderId));
+      if (order) openReservationDetail(order);
+    });
+  });
+}
+
+// orderCardHtml renders a summary card; tapping it (anywhere outside the
+// review form / reserve-code area, which have their own interactions)
+// opens the full reservation detail sheet via openReservationDetail —
+// see the "Reservation detail" section above for why this exists (the
+// address was previously only ever shown while browsing, never again
+// after a reservation was made).
 function orderCardHtml(order) {
   const label = statusLabel(order.status);
   const showCode = order.status === "reserved";
   const showReviewForm = order.status === "picked_up" && !order.reviewed;
   return `
-    <div class="profile-order">
+    <div class="profile-order" data-order-id="${order.id}">
       <div class="profile-order-top">
         <div>
           <div class="profile-order-merchant">${escapeHtml(order.merchant_name)}</div>
@@ -2666,6 +2778,7 @@ async function loadProfile() {
     }
     container.innerHTML = html;
     attachReviewHandlers(container);
+    attachOrderDetailHandlers(container, orders);
   } catch (e) {
     container.innerHTML = `<div class="empty-state">${t("empty_orders_error")}</div>`;
   }
