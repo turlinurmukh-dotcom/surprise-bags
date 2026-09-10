@@ -380,6 +380,23 @@
     margin: var(--space-1) 0 var(--space-1);
   }
 
+  .directions-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: var(--space-1);
+    background: none;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .directions-btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
+
   .allergy-disclaimer {
     background: var(--chip-other);
     border: 1px solid var(--gold-soft);
@@ -1393,6 +1410,7 @@ const TRANSLATIONS = {
     bag_count_one: "1 bag available",
     bag_count_other: (n) => `${n} bags available`,
     available_bags: "Available bags",
+    get_directions: "Get directions",
     empty_merchant_title: "No bags left right now",
     empty_merchant_body: "This cafe's bags were just claimed — check back later or browse other cafes.",
     allergy_disclaimer: "Contents are a surprise and not itemized — if you have allergies or dietary restrictions, please confirm with staff at pickup before accepting.",
@@ -1483,6 +1501,7 @@ const TRANSLATIONS = {
     bag_count_one: "1 пакет доступен",
     bag_count_other: (n) => `${n} пакетов доступно`,
     available_bags: "Доступные пакеты",
+    get_directions: "Маршрут",
     empty_merchant_title: "Сейчас пакетов нет",
     empty_merchant_body: "Пакеты этого кафе только что разобрали — загляните позже или посмотрите другие кафе.",
     allergy_disclaimer: "Содержимое — сюрприз и не указывается по составу — если у вас аллергия или пищевые ограничения, пожалуйста, уточните у персонала перед получением.",
@@ -1573,6 +1592,7 @@ const TRANSLATIONS = {
     bag_count_one: "1 пакет қолжетімді",
     bag_count_other: (n) => `${n} пакет қолжетімді`,
     available_bags: "Қолжетімді пакеттер",
+    get_directions: "Бағыт",
     empty_merchant_title: "Қазір пакет жоқ",
     empty_merchant_body: "Бұл кафенің пакеттерін жаңа ғана алып кетті — кейінірек қараңыз немесе басқа кафелерді шолыңыз.",
     allergy_disclaimer: "Пакет мазмұны — сюрприз және құрамы көрсетілмейді — аллергияңыз немесе тағамдық шектеулеріңіз болса, алу кезінде қызметкерлерден растап алыңыз.",
@@ -2067,6 +2087,12 @@ function renderMerchantDetail(merchant) {
             <span>${t("review_dim_variety")}: ${merchant.rating_variety.toFixed(1)}</span>
           </div>
         ` : ""}
+        ${merchant.latitude != null && merchant.longitude != null ? `
+          <button type="button" class="directions-btn" id="merchantDirectionsBtn" data-lat="${merchant.latitude}" data-lng="${merchant.longitude}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2-8-8-2z"/></svg>
+            ${t("get_directions")}
+          </button>
+        ` : ""}
       </div>
     </div>
     <div class="merchant-detail-bags-title">${t("available_bags")}</div>
@@ -2074,6 +2100,10 @@ function renderMerchantDetail(merchant) {
     ${bagsHtml}
   `;
   attachReserveHandlers(container);
+  document.getElementById("merchantDirectionsBtn")?.addEventListener("click", (e) => {
+    const btn = e.currentTarget;
+    openDirections(Number(btn.dataset.lat), Number(btn.dataset.lng));
+  });
 }
 
 async function loadMerchantDetail() {
@@ -2093,6 +2123,31 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str ?? "";
   return div.innerHTML;
+}
+
+// Opens walking directions to (lat, lng) via 2GIS's own https:// link —
+// NOT the dgis:// custom scheme. Telegram's in-app WebView silently drops
+// navigation to non-http(s) custom schemes (a long-standing, unfixed
+// Telegram bug: tdlib/telegram-bot-api#299, still-open
+// TelegramMessenger/Telegram-iOS#244) with no failure signal to detect,
+// which makes a "try dgis://, fall back after a timeout" approach
+// fundamentally unworkable inside this app's actual runtime — it would
+// silently fail every time with no way to catch it. The https://2gis.kz
+// link instead goes through standard iOS/Android universal-link
+// association files (confirmed present and covering /directions/* on
+// 2gis.kz), so it opens the native 2GIS app when installed and degrades
+// to the 2GIS website otherwise — one link, both cases, and it actually
+// works through tg.openLink() since that only handles http(s) URLs.
+//
+// Coordinate order in the path is lon,lat (not lat,lon) — confirmed
+// against live 2GIS URLs, not assumed.
+function openDirections(lat, lng) {
+  const url = `https://2gis.kz/almaty/directions/tab/pedestrian/points/%7C${lng}%2C${lat}`;
+  if (tg?.openLink) {
+    tg.openLink(url);
+  } else {
+    window.location.href = url;
+  }
 }
 
 async function reserveListing(listingId, buttonEl) {
